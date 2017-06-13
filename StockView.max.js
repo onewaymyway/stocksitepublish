@@ -19374,6 +19374,97 @@ var Laya=window.Laya=(function(window,document){
 	*...
 	*@author ww
 	*/
+	//class laya.stock.analysers.lines.StrongLine extends laya.stock.analysers.lines.AverageLine
+	var StrongLine=(function(_super){
+		function StrongLine(){
+			this.lineHeight=100;
+			this.offY=10;
+			this.buyCount=3;
+			this.sellCount=1;
+			StrongLine.__super.call(this);
+			this.days="4";
+		}
+
+		__class(StrongLine,'laya.stock.analysers.lines.StrongLine',_super);
+		var __proto=StrongLine.prototype;
+		__proto.initParamKeys=function(){
+			this.paramkeys=["days","colors","lineHeight","offY","buyCount","sellCount"];
+		}
+
+		__proto.getAverageData=function(dayCount,color){
+			var avList;
+			avList=DataUtils.getAverage(this.disDataList,dayCount,this.priceType);
+			var avPoints
+			avPoints=[];
+			var i=0,len=0;
+			len=avList.length;
+			var strongList=[];
+			for (i=0;i < len;i++){
+				avPoints.push([i,(this.disDataList[i]["close"] / avList[i])*this.lineHeight]);
+				strongList.push(this.disDataList[i]["close"] / avList[i]);
+			};
+			var rst;
+			rst=[[avPoints,color,this.offY],this.makeBuys(strongList)];
+			return rst;
+		}
+
+		__proto.makeBuys=function(strongList){
+			var buys;
+			buys=[];
+			var i=0,len=0;
+			len=strongList.length;
+			var tState=0;
+			var bigger=0;
+			var smaller=0;
+			bigger=0;
+			smaller=0;
+			var preSign;
+			for (i=0;i < len;i++){
+				if (strongList[i]==1)continue ;
+				if (strongList[i] >=1){
+					bigger++;
+					smaller=0
+					}else{
+					smaller++;
+					bigger=0;
+				}
+				if (bigger==this.buyCount){
+					if (preSign=="buy"){
+					}
+					preSign="buy";
+					buys.push(["buy",i]);
+				}
+				if (smaller==this.sellCount){
+					preSign="sell";
+					buys.push(["sell",i]);
+				}
+			}
+			return buys;
+		}
+
+		__proto.getDrawCmds=function(){
+			var rst;
+			rst=[];
+			var avgs;
+			avgs=this.resultData["averages"];
+			var i=0,len=0;
+			len=avgs.length;
+			for (i=0;i < len;i++){
+				rst.push(["drawLinesEx",avgs[i][0]]);
+				rst.push(["drawTexts",[avgs[i][1],"low",30,"#00ff00",true,"#00ff00"]]);
+			}
+			rst.push(["drawLinesEx",[[[0,this.lineHeight],[this.disDataList.length-1,this.lineHeight]],"#ff0000",this.offY]]);
+			return rst;
+		}
+
+		return StrongLine;
+	})(AverageLine)
+
+
+	/**
+	*...
+	*@author ww
+	*/
 	//class laya.stock.analysers.lines.WinRateLine extends laya.stock.analysers.lines.AverageLine
 	var WinRateLine=(function(_super){
 		function WinRateLine(){
@@ -22013,6 +22104,7 @@ var Laya=window.Laya=(function(window,document){
 			var i=0,len=0;
 			len=values.length;
 			var tValue=NaN;
+			var tTxt;
 			for (i=0;i < len;i++){
 				tValue=values;
 				this.drawLine(startI,tValue,endI,tValue,color);
@@ -22020,10 +22112,10 @@ var Laya=window.Laya=(function(window,document){
 			if (texts){
 				len=texts.length;
 				for (i=0;i < len;i++){
-					/*no*/this.tTxt=texts[i];
+					tTxt=texts[i];
 					tValue=values[i];
-					this.graphics.fillText(/*no*/this.tTxt,this.getAdptXV(startI*this.gridWidth),this.getAdptYV(tValue),null,color,"left");
-					this.graphics.fillText(/*no*/this.tTxt,this.getAdptXV(endI*this.gridWidth),this.getAdptYV(tValue),null,color,"right");
+					this.graphics.fillText(tTxt,this.getAdptXV(startI*this.gridWidth),this.getAdptYV(tValue),null,color,"left");
+					this.graphics.fillText(tTxt,this.getAdptXV(endI*this.gridWidth),this.getAdptYV(tValue),null,color,"right");
 				}
 			}
 		}
@@ -24728,6 +24820,7 @@ var Laya=window.Laya=(function(window,document){
 				tMDData=this.stockList[i];
 				if (tMDData.stock==tStockStr){
 					this.stockList.splice(i,1);
+					break ;
 				}
 			};
 			var tChild;
@@ -35127,6 +35220,7 @@ var Laya=window.Laya=(function(window,document){
 			this.stockInput=null;
 			this.addBtn=null;
 			this.showMDCheck=null;
+			this.showListCheck=null;
 			RealTimeUI.__super.call(this);
 		}
 
@@ -35138,7 +35232,7 @@ var Laya=window.Laya=(function(window,document){
 			this.createView(RealTimeUI.uiView);
 		}
 
-		RealTimeUI.uiView={"type":"View","props":{"width":445,"height":400},"child":[{"type":"List","props":{"y":10,"x":10,"var":"list","vScrollBarSkin":"comp/vscroll.png","top":30,"right":10,"repeatX":1,"left":10,"bottom":10},"child":[{"type":"StockRealTimeItem","props":{"y":0,"x":0,"runtime":"view.realtime.RealTimeItem","renderType":"render"}}]},{"type":"CheckBox","props":{"y":7,"x":7,"width":61,"var":"autoFresh","skin":"comp/checkbox.png","label":"自动刷新","height":19,"labelColors":"#efefef,#ffffff,#c5c5c5,#c5c5c5"}},{"type":"Button","props":{"y":3,"x":90,"var":"freshBtn","skin":"comp/button.png","label":"刷新","labelColors":"#efefef,#ffffff,#c5c5c5,#c5c5c5"}},{"type":"TextInput","props":{"y":5,"x":185,"width":90,"var":"stockInput","text":"002234","skin":"comp/textinput.png","height":22,"color":"#f1dede"}},{"type":"Button","props":{"y":4,"x":285,"var":"addBtn","skin":"comp/button.png","label":"添加","labelColors":"#efefef,#ffffff,#c5c5c5,#c5c5c5"}},{"type":"CheckBox","props":{"y":8,"x":364,"width":61,"var":"showMDCheck","skin":"comp/checkbox.png","label":"分时图","height":19,"labelColors":"#efefef,#ffffff,#c5c5c5,#c5c5c5"}}]};
+		RealTimeUI.uiView={"type":"View","props":{"width":445,"height":400},"child":[{"type":"List","props":{"y":10,"x":10,"var":"list","vScrollBarSkin":"comp/vscroll.png","top":30,"right":10,"repeatX":1,"left":10,"bottom":10},"child":[{"type":"StockRealTimeItem","props":{"y":0,"x":0,"runtime":"view.realtime.RealTimeItem","renderType":"render"}}]},{"type":"CheckBox","props":{"y":7,"x":7,"width":61,"var":"autoFresh","skin":"comp/checkbox.png","label":"自动刷新","height":19,"labelColors":"#efefef,#ffffff,#c5c5c5,#c5c5c5"}},{"type":"Button","props":{"y":3,"x":90,"var":"freshBtn","skin":"comp/button.png","label":"刷新","labelColors":"#efefef,#ffffff,#c5c5c5,#c5c5c5"}},{"type":"TextInput","props":{"y":5,"x":185,"width":90,"var":"stockInput","text":"002234","skin":"comp/textinput.png","height":22,"color":"#f1dede"}},{"type":"Button","props":{"y":4,"x":285,"var":"addBtn","skin":"comp/button.png","label":"添加","labelColors":"#efefef,#ffffff,#c5c5c5,#c5c5c5"}},{"type":"CheckBox","props":{"y":8,"x":364,"width":61,"var":"showMDCheck","skin":"comp/checkbox.png","label":"分时图","height":19,"labelColors":"#efefef,#ffffff,#c5c5c5,#c5c5c5"}},{"type":"CheckBox","props":{"y":8,"x":425,"width":61,"var":"showListCheck","skin":"comp/checkbox.png","label":"列表","height":19,"labelColors":"#efefef,#ffffff,#c5c5c5,#c5c5c5"}}]};
 		return RealTimeUI;
 	})(View)
 
@@ -36399,6 +36493,7 @@ var Laya=window.Laya=(function(window,document){
 			analyserClassList.push(WinRateLine);
 			analyserClassList.push(PositionLine);
 			analyserClassList.push(ChanAnalyser);
+			analyserClassList.push(StrongLine);
 			this.analyserList.initAnalysers(analyserClassList);
 			this.addChild(this.kLine);
 			var stock;
@@ -36837,10 +36932,16 @@ var Laya=window.Laya=(function(window,document){
 			Notice.listen("Add_MDLine",this,this.addMdStock);
 			Notice.listen("Remove_MDLine",this,this.removeMdStock);
 			this.showMDCheck.on("change",this,this.showMDChange);
+			this.showListCheck.selected=true;
+			this.showListCheck.on("change",this,this.showListChange);
 		}
 
 		__class(RealTimeView,'view.RealTimeView',_super);
 		var __proto=RealTimeView.prototype;
+		__proto.showListChange=function(){
+			this.list.visible=this.showListCheck.selected;
+		}
+
 		__proto.showMDChange=function(){
 			this.showMDView(this.showMDCheck.selected);
 		}
@@ -37262,25 +37363,6 @@ var Laya=window.Laya=(function(window,document){
 	*...
 	*@author ww
 	*/
-	//class laya.debug.view.nodeInfo.nodetree.FindNodeSmall extends laya.debug.ui.debugui.FindNodeSmallUI
-	var FindNodeSmall=(function(_super){
-		function FindNodeSmall(){
-			FindNodeSmall.__super.call(this);
-			Base64AtlasManager.replaceRes(FindNodeSmallUI.uiView);
-			this.createView(FindNodeSmallUI.uiView);
-		}
-
-		__class(FindNodeSmall,'laya.debug.view.nodeInfo.nodetree.FindNodeSmall',_super);
-		var __proto=FindNodeSmall.prototype;
-		__proto.createChildren=function(){}
-		return FindNodeSmall;
-	})(FindNodeSmallUI)
-
-
-	/**
-	*...
-	*@author ww
-	*/
 	//class laya.debug.view.nodeInfo.nodetree.FindNode extends laya.debug.ui.debugui.FindNodeUI
 	var FindNode=(function(_super){
 		function FindNode(){
@@ -37297,6 +37379,25 @@ var Laya=window.Laya=(function(window,document){
 
 		return FindNode;
 	})(FindNodeUI)
+
+
+	/**
+	*...
+	*@author ww
+	*/
+	//class laya.debug.view.nodeInfo.nodetree.FindNodeSmall extends laya.debug.ui.debugui.FindNodeSmallUI
+	var FindNodeSmall=(function(_super){
+		function FindNodeSmall(){
+			FindNodeSmall.__super.call(this);
+			Base64AtlasManager.replaceRes(FindNodeSmallUI.uiView);
+			this.createView(FindNodeSmallUI.uiView);
+		}
+
+		__class(FindNodeSmall,'laya.debug.view.nodeInfo.nodetree.FindNodeSmall',_super);
+		var __proto=FindNodeSmall.prototype;
+		__proto.createChildren=function(){}
+		return FindNodeSmall;
+	})(FindNodeSmallUI)
 
 
 	/**
@@ -37401,26 +37502,6 @@ var Laya=window.Laya=(function(window,document){
 		__proto.createChildren=function(){}
 		return NodeTool;
 	})(NodeToolUI)
-
-
-	/**
-	*...
-	*@author ww
-	*/
-	//class laya.debug.view.nodeInfo.nodetree.NodeTreeSetting extends laya.debug.ui.debugui.NodeTreeSettingUI
-	var NodeTreeSetting=(function(_super){
-		function NodeTreeSetting(){
-			NodeTreeSetting.__super.call(this);
-			Base64AtlasManager.replaceRes(NodeTreeSettingUI.uiView);
-			this.createView(NodeTreeSettingUI.uiView);
-		}
-
-		__class(NodeTreeSetting,'laya.debug.view.nodeInfo.nodetree.NodeTreeSetting',_super);
-		var __proto=NodeTreeSetting.prototype;
-		//inits();
-		__proto.createChildren=function(){}
-		return NodeTreeSetting;
-	})(NodeTreeSettingUI)
 
 
 	/**
@@ -37670,6 +37751,26 @@ var Laya=window.Laya=(function(window,document){
 	*...
 	*@author ww
 	*/
+	//class laya.debug.view.nodeInfo.nodetree.NodeTreeSetting extends laya.debug.ui.debugui.NodeTreeSettingUI
+	var NodeTreeSetting=(function(_super){
+		function NodeTreeSetting(){
+			NodeTreeSetting.__super.call(this);
+			Base64AtlasManager.replaceRes(NodeTreeSettingUI.uiView);
+			this.createView(NodeTreeSettingUI.uiView);
+		}
+
+		__class(NodeTreeSetting,'laya.debug.view.nodeInfo.nodetree.NodeTreeSetting',_super);
+		var __proto=NodeTreeSetting.prototype;
+		//inits();
+		__proto.createChildren=function(){}
+		return NodeTreeSetting;
+	})(NodeTreeSettingUI)
+
+
+	/**
+	*...
+	*@author ww
+	*/
 	//class laya.debug.view.nodeInfo.nodetree.ObjectCreate extends laya.debug.ui.debugui.ObjectCreateUI
 	var ObjectCreate=(function(_super){
 		function ObjectCreate(){
@@ -37824,10 +37925,3 @@ var Laya=window.Laya=(function(window,document){
 	new StockMain();
 
 })(window,document,Laya);
-
-
-/*
-1 file:///D:/stocksite.git/trunk/StockView/src/stock/views/KLine.as (427):warning:tTxt This variable is not defined.
-2 file:///D:/stocksite.git/trunk/StockView/src/stock/views/KLine.as (429):warning:tTxt This variable is not defined.
-3 file:///D:/stocksite.git/trunk/StockView/src/stock/views/KLine.as (430):warning:tTxt This variable is not defined.
-*/
