@@ -16748,40 +16748,79 @@ var Laya=window.Laya=(function(window,document){
 			this.barHeight=100;
 			this.offY=0;
 			this.color="#ffff00";
+			this.buyDownCount=3;
+			this.showSign=0;
+			this.sign="volume";
 			VolumeBar.__super.call(this);
 		}
 
 		__class(VolumeBar,'laya.stock.analysers.bars.VolumeBar',_super);
 		var __proto=VolumeBar.prototype;
 		__proto.initParamKeys=function(){
-			this.paramkeys=["barHeight","offY","color"];
+			this.paramkeys=["barHeight","offY","color","buyDownCount","showSign"];
 		}
 
 		__proto.analyseWork=function(){
-			var sign;
-			sign="amount";
-			sign="volume";
+			this.sign="amount";
+			this.sign="volume";
 			var i=0,len=0;
 			var dataList;
 			dataList=this.disDataList;
 			len=dataList.length;
 			var tData;
 			var max=NaN;
-			max=DataUtils.getKeyMax(dataList,sign);
+			max=DataUtils.getKeyMax(dataList,this.sign);
 			var MRate=NaN;
 			MRate=this.barHeight / max;
 			var barsData;
 			barsData=[];
 			for (i=0;i < len;i++){
-				barsData.push([i,-dataList[i][sign]*MRate]);
+				barsData.push([i,-dataList[i][this.sign] *MRate]);
 			}
 			this.resultData["bars"]=barsData;
+			this.doBuyPoints(false,"down");
+			this.doBuyPoints(true,"up");
+		}
+
+		__proto.doBuyPoints=function(isBigger,markSign){
+			(isBigger===void 0)&& (isBigger=false);
+			(markSign===void 0)&& (markSign="down");
+			var i=0,len=0;
+			var tDownCount=0;
+			var preValue=0;
+			var dataList;
+			dataList=this.disDataList;
+			len=dataList.length;
+			var tData;
+			var tValue=NaN;
+			tDownCount=0;
+			var buyList;
+			buyList=[];
+			for (i=0;i < len;i++){
+				tData=dataList[i];
+				tValue=tData[this.sign];
+				if (tValue==preValue || (isBigger==(tValue > preValue))){
+					tDownCount++;
+				}
+				else {
+					if (tDownCount >=this.buyDownCount){
+						buyList.push([markSign+":"+tDownCount,i]);
+					}
+					tDownCount=0;
+				}
+				preValue=tValue;
+			}
+			this.resultData[markSign]=buyList;
 		}
 
 		__proto.getDrawCmds=function(){
 			var rst;
 			rst=[];
 			rst.push(["drawBars",[this.resultData["bars"],this.offY,this.color]]);
+			if (this.showSign){
+				rst.push(["drawTexts",[this.resultData["up"],"low",30,"#00ff00",true,"#00ff00"]]);
+				rst.push(["drawTexts",[this.resultData["down"],"low",50,"#ffff00",true,"#00ff00"]]);
+			}
 			return rst;
 		}
 
@@ -21204,6 +21243,7 @@ var Laya=window.Laya=(function(window,document){
 	//class laya.stock.analysers.AverageLineAnalyser extends laya.stock.analysers.lines.AverageLine
 	var AverageLineAnalyser=(function(_super){
 		function AverageLineAnalyser(){
+			this.showBuy=0;
 			AverageLineAnalyser.__super.call(this);
 			this.days="5,12,26";
 			this.colors="#ff0000,#00ffff,#ffff00";
@@ -21211,6 +21251,10 @@ var Laya=window.Laya=(function(window,document){
 
 		__class(AverageLineAnalyser,'laya.stock.analysers.AverageLineAnalyser',_super);
 		var __proto=AverageLineAnalyser.prototype;
+		__proto.initParamKeys=function(){
+			this.paramkeys=["days","colors","priceType","showBuy"];
+		}
+
 		__proto.addToConfigTypes=function(types){
 			var mTpl;
 			mTpl="{#code#}:{#rate#}%:{#day#}:{#mRate#}\n{#lastBuy#}:{#changePercent#}%\n{#high7#}%,{#high15#}%,{#high30#}%,{#high45#}%";
@@ -21260,13 +21304,45 @@ var Laya=window.Laya=(function(window,document){
 			types.push(tData);
 		}
 
+		__proto.doAverages=function(){
+			_super.prototype.doAverages.call(this);
+			var buyPoints;
+			buyPoints=[];
+			var avgs;
+			avgs=this.resultData["averages"];
+			var i=0,len=0;
+			len=this.disDataList.length;
+			var upCount=0;
+			var tI=0;
+			var preIsUp=false;
+			preIsUp=false;
+			tI=this.disDataList.length-1;
+			var curIsUp=false;
+			for (i=1;i < len;i++){
+				curIsUp=this.isUpTrend(avgs,i);
+				if ((!preIsUp)&& curIsUp){
+					buyPoints.push(["buy:"+this.disDataList[i]["date"],i]);
+				}
+				preIsUp=curIsUp;
+			}
+			this.resultData["buys"]=buyPoints;
+		}
+
+		__proto.getDrawCmds=function(){
+			var rst;
+			rst=_super.prototype.getDrawCmds.call(this);
+			if(this.showBuy>0)
+				rst.push(["drawTexts",[this.resultData["buys"],"low",30,"#00ff00",true,"#00ff00"]]);
+			return rst;
+		}
+
 		__proto.addToShowData=function(showData){
 			var kLineO;
 			kLineO={};
 			kLineO.code=showData.code;
 			kLineO.day=0;
 			kLineO.rate=0;
-			kLineO.last;
+			kLineO.last="";
 			var avgs;
 			avgs=this.resultData["averages"];
 			var i=0,len=0;
@@ -37186,6 +37262,7 @@ var Laya=window.Laya=(function(window,document){
 			this.addToStockBtn=null;
 			this.tradeTest=null;
 			this.tradeSelect=null;
+			this.markBtn=null;
 			KLineViewUI.__super.call(this);
 		}
 
@@ -37199,7 +37276,7 @@ var Laya=window.Laya=(function(window,document){
 			this.createView(KLineViewUI.uiView);
 		}
 
-		KLineViewUI.uiView={"type":"View","props":{"width":800,"height":400},"child":[{"type":"ComboBox","props":{"y":9,"x":8,"var":"stockSelect","skin":"comp/combobox.png","scrollBarSkin":"comp/vscroll.png","labels":"000233,600322","labelColors":"#efefef,#ffffff,#c5c5c5,#c5c5c5"}},{"type":"Button","props":{"y":9,"x":114,"var":"playBtn","skin":"comp/button.png","label":"play","labelColors":"#efefef,#ffffff,#c5c5c5,#c5c5c5"}},{"type":"Label","props":{"y":13,"x":225,"width":147,"var":"infoTxt","text":"label","height":20,"color":"#ffffff"}},{"type":"TextInput","props":{"y":43,"x":8,"width":90,"var":"stockInput","text":"002234","skin":"comp/textinput.png","height":22,"color":"#f1dede"}},{"type":"Button","props":{"y":42,"x":114,"var":"playInputBtn","skin":"comp/button.png","label":"play","labelColors":"#efefef,#ffffff,#c5c5c5,#c5c5c5"}},{"type":"CheckBox","props":{"y":45,"x":226,"var":"enableAnimation","skin":"comp/checkbox.png","selected":true,"label":"开启动画","labelColors":"#efefef,#ffffff,#c5c5c5,#c5c5c5"}},{"type":"Button","props":{"y":39,"x":301,"var":"detailBtn","skin":"comp/button.png","label":"详情","labelColors":"#efefef,#ffffff,#c5c5c5,#c5c5c5"}},{"type":"Button","props":{"y":80,"x":8,"var":"preBtn","skin":"comp/button.png","label":"pre","labelColors":"#efefef,#ffffff,#c5c5c5,#c5c5c5"}},{"type":"Button","props":{"y":80,"x":100,"var":"nextBtn","skin":"comp/button.png","label":"next","labelColors":"#efefef,#ffffff,#c5c5c5,#c5c5c5"}},{"type":"AnalyserList","props":{"var":"analyserList","top":10,"runtime":"view.plugins.AnalyserList","right":10}},{"type":"PropPanel","props":{"y":0,"var":"propPanel","runtime":"stock.prop.PropPanel","right":180}},{"type":"HScrollBar","props":{"y":101,"x":225,"width":166,"var":"dayScroll","skin":"comp/hscroll.png","height":13}},{"type":"CheckBox","props":{"y":76,"x":226,"var":"maxDayEnable","skin":"comp/checkbox.png","selected":false,"label":"天数限制","labelColors":"#efefef,#ffffff,#c5c5c5,#c5c5c5"}},{"type":"TextInput","props":{"y":73,"x":300,"width":90,"var":"dayCountInput","text":"300","skin":"comp/textinput.png","height":22,"color":"#f1dede"}},{"type":"CheckBox","props":{"y":77,"x":403,"var":"clickControlEnable","skin":"comp/checkbox.png","selected":true,"label":"单击平移","labelColors":"#efefef,#ffffff,#c5c5c5,#c5c5c5"}},{"type":"Button","props":{"y":39,"x":383,"var":"addToStockBtn","skin":"comp/button.png","label":"加自选","labelColors":"#efefef,#ffffff,#c5c5c5,#c5c5c5"}},{"type":"TradeTest","props":{"var":"tradeTest","runtime":"view.plugins.TradeTest","left":5,"bottom":5}},{"type":"CheckBox","props":{"y":109,"x":8,"var":"tradeSelect","skin":"comp/checkbox.png","selected":true,"label":"模拟交易","labelColors":"#efefef,#ffffff,#c5c5c5,#c5c5c5"}}]};
+		KLineViewUI.uiView={"type":"View","props":{"width":800,"height":400},"child":[{"type":"ComboBox","props":{"y":9,"x":8,"var":"stockSelect","skin":"comp/combobox.png","scrollBarSkin":"comp/vscroll.png","labels":"000233,600322","labelColors":"#efefef,#ffffff,#c5c5c5,#c5c5c5"}},{"type":"Button","props":{"y":9,"x":114,"var":"playBtn","skin":"comp/button.png","label":"play","labelColors":"#efefef,#ffffff,#c5c5c5,#c5c5c5"}},{"type":"Label","props":{"y":13,"x":225,"width":147,"var":"infoTxt","text":"label","height":20,"color":"#ffffff"}},{"type":"TextInput","props":{"y":43,"x":8,"width":90,"var":"stockInput","text":"002234","skin":"comp/textinput.png","height":22,"color":"#f1dede"}},{"type":"Button","props":{"y":42,"x":114,"var":"playInputBtn","skin":"comp/button.png","label":"play","labelColors":"#efefef,#ffffff,#c5c5c5,#c5c5c5"}},{"type":"CheckBox","props":{"y":45,"x":226,"var":"enableAnimation","skin":"comp/checkbox.png","selected":true,"label":"开启动画","labelColors":"#efefef,#ffffff,#c5c5c5,#c5c5c5"}},{"type":"Button","props":{"y":39,"x":301,"var":"detailBtn","skin":"comp/button.png","label":"详情","labelColors":"#efefef,#ffffff,#c5c5c5,#c5c5c5"}},{"type":"Button","props":{"y":80,"x":8,"var":"preBtn","skin":"comp/button.png","label":"pre","labelColors":"#efefef,#ffffff,#c5c5c5,#c5c5c5"}},{"type":"Button","props":{"y":80,"x":100,"var":"nextBtn","skin":"comp/button.png","label":"next","labelColors":"#efefef,#ffffff,#c5c5c5,#c5c5c5"}},{"type":"AnalyserList","props":{"var":"analyserList","top":10,"runtime":"view.plugins.AnalyserList","right":10}},{"type":"PropPanel","props":{"y":0,"var":"propPanel","runtime":"stock.prop.PropPanel","right":180}},{"type":"HScrollBar","props":{"y":101,"x":225,"width":166,"var":"dayScroll","skin":"comp/hscroll.png","height":13}},{"type":"CheckBox","props":{"y":76,"x":226,"var":"maxDayEnable","skin":"comp/checkbox.png","selected":false,"label":"天数限制","labelColors":"#efefef,#ffffff,#c5c5c5,#c5c5c5"}},{"type":"TextInput","props":{"y":73,"x":300,"width":90,"var":"dayCountInput","text":"300","skin":"comp/textinput.png","height":22,"color":"#f1dede"}},{"type":"CheckBox","props":{"y":77,"x":403,"var":"clickControlEnable","skin":"comp/checkbox.png","selected":true,"label":"单击平移","labelColors":"#efefef,#ffffff,#c5c5c5,#c5c5c5"}},{"type":"Button","props":{"y":39,"x":383,"width":51,"var":"addToStockBtn","skin":"comp/button.png","label":"加自选","height":24,"labelColors":"#efefef,#ffffff,#c5c5c5,#c5c5c5"}},{"type":"TradeTest","props":{"var":"tradeTest","runtime":"view.plugins.TradeTest","left":5,"bottom":5}},{"type":"CheckBox","props":{"y":109,"x":8,"var":"tradeSelect","skin":"comp/checkbox.png","selected":true,"label":"模拟交易","labelColors":"#efefef,#ffffff,#c5c5c5,#c5c5c5"}},{"type":"Button","props":{"y":39,"x":440,"width":51,"var":"markBtn","skin":"comp/button.png","label":"Mark","height":24,"labelColors":"#efefef,#ffffff,#c5c5c5,#c5c5c5"}}]};
 		return KLineViewUI;
 	})(View)
 
@@ -38610,6 +38687,7 @@ var Laya=window.Laya=(function(window,document){
 			this.on("mouseup",this,this.onMMouseUp);
 			this.enableAnimation.selected=false;
 			this.addToStockBtn.on("mousedown",this,this.onAddToStock);
+			this.markBtn.on("mousedown",this,this.onMarkBtn);
 			this.on("keydown",this,this.onKeyDown);
 			this.tradeSelect.selected=false;
 			this.tradeSelect.on("change",this,this.updateTradeVisible);
@@ -38658,6 +38736,16 @@ var Laya=window.Laya=(function(window,document){
 					this.dayScroll.value=this.dayScroll.value+1;
 					break ;
 				}
+		}
+
+		__proto.onMarkBtn=function(){
+			Notice.notify("AddMyStock",this.kLine.tStock);
+			this.addToStockBtn.label="删自选";
+			Laya.timer.once(1000,this,this.markLater,[this.kLine.tStock]);
+		}
+
+		__proto.markLater=function(stock){
+			Notice.notify("Mark_MyStock",stock);
 		}
 
 		__proto.onAddToStock=function(){
@@ -39385,6 +39473,7 @@ var Laya=window.Laya=(function(window,document){
 					dataO=StockJsonP.getStockData(stock);
 					if (dataO){
 						tData.markPrice=dataO.price;
+						MessageManager.I.show("Mark stock success:"+stock);
 					}
 					this.stockList[i]=tData;
 					break ;
