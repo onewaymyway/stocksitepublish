@@ -2613,6 +2613,7 @@ var Laya=window.Laya=(function(window,document){
 		MsgConst.Show_Pre_Select="Show_Pre_Select";
 		MsgConst.AnalyserListChange="AnalyserListChange";
 		MsgConst.Show_Analyser_Prop="Show_Analyser_Prop";
+		MsgConst.Hide_Analyser_Prop="Hide_Analyser_Prop";
 		MsgConst.Set_Analyser_Prop="Set_Analyser_Prop";
 		MsgConst.Fresh_Analyser_Prop="Fresh_Analyser_Prop";
 		MsgConst.Stock_Data_Inited="DataInited";
@@ -16637,36 +16638,6 @@ var Laya=window.Laya=(function(window,document){
 		});
 
 		return WordText;
-	})()
-
-
-	/**
-	*...
-	*@author dongketao
-	*/
-	//class PathFinding.core.Node
-	var Node$1=(function(){
-		function Node(x,y,walkable){
-			this.x=0;
-			this.y=0;
-			this.g=0;
-			this.f=0;
-			this.h=0;
-			this.by=0;
-			this.parent=null;
-			this.opened=null;
-			this.closed=null;
-			this.tested=null;
-			this.retainCount=null;
-			this.walkable=false;
-			(walkable===void 0)&& (walkable=true);
-			this.x=x;
-			this.y=y;
-			this.walkable=walkable;
-		}
-
-		__class(Node,'PathFinding.core.Node',null,'Node$1');
-		return Node;
 	})()
 
 
@@ -39183,6 +39154,7 @@ var Laya=window.Laya=(function(window,document){
 			this.propPanel.visible=false;
 			Notice.listen("AnalyserListChange",this,this.analysersChanged);
 			Notice.listen("Show_Analyser_Prop",this,this.showAnalyserProp);
+			Notice.listen("Hide_Analyser_Prop",this,this.updatePropPanelPos);
 			Notice.listen("Set_Analyser_Prop",this,this.onSetAnalyserProps);
 			this.propPanel.on("MakeChange",this,this.refreshKLine);
 			this.on("mousedown",this,this.onMMouseDown);
@@ -39197,6 +39169,7 @@ var Laya=window.Laya=(function(window,document){
 			this.kLine.on("KlineShowed",this,this.onKlineShowed);
 			this.tradeTest.on("NEXT_Day",this,this.onNextDay);
 			this.tradeTest.on("ANOTHER",this,this.onAnotherTradeTest);
+			if (Browser.onMobile)this.tradeSelect.scaleX=this.tradeSelect.scaleY=2;
 		}
 
 		__class(KLineView,'view.KLineView',_super);
@@ -39384,6 +39357,11 @@ var Laya=window.Laya=(function(window,document){
 		__proto.showAnalyserProp=function(desArr,dataO){
 			this.propPanel.visible=true;
 			this.propPanel.initByData(desArr,dataO);
+			this.updatePropPanelPos();
+		}
+
+		__proto.updatePropPanelPos=function(){
+			this.propPanel.x=this.analyserList.x-this.propPanel.width-1;
 		}
 
 		__proto.analysersChanged=function(analysers){
@@ -39663,10 +39641,16 @@ var Laya=window.Laya=(function(window,document){
 			this.list.array=[];
 			this.list.scrollBar.autoHide=true;
 			this.showSelect.on("change",this,this.updateUIState);
+			this.on("doubleclick",this,this.onDoubleClick);
 		}
 
 		__class(AnalyserList,'view.plugins.AnalyserList',_super);
 		var __proto=AnalyserList.prototype;
+		__proto.onDoubleClick=function(e){
+			this.scaleX=this.scaleY=3-this.scaleX;
+			Notice.notify("Hide_Analyser_Prop");
+		}
+
 		__proto.updateUIState=function(){
 			this.list.visible=this.showSelect.selected;
 		}
@@ -40611,25 +40595,6 @@ var Laya=window.Laya=(function(window,document){
 	*...
 	*@author ww
 	*/
-	//class laya.debug.view.nodeInfo.nodetree.FindNodeSmall extends laya.debug.ui.debugui.FindNodeSmallUI
-	var FindNodeSmall=(function(_super){
-		function FindNodeSmall(){
-			FindNodeSmall.__super.call(this);
-			Base64AtlasManager.replaceRes(FindNodeSmallUI.uiView);
-			this.createView(FindNodeSmallUI.uiView);
-		}
-
-		__class(FindNodeSmall,'laya.debug.view.nodeInfo.nodetree.FindNodeSmall',_super);
-		var __proto=FindNodeSmall.prototype;
-		__proto.createChildren=function(){}
-		return FindNodeSmall;
-	})(FindNodeSmallUI)
-
-
-	/**
-	*...
-	*@author ww
-	*/
 	//class laya.debug.view.nodeInfo.nodetree.FindNode extends laya.debug.ui.debugui.FindNodeUI
 	var FindNode=(function(_super){
 		function FindNode(){
@@ -40646,6 +40611,25 @@ var Laya=window.Laya=(function(window,document){
 
 		return FindNode;
 	})(FindNodeUI)
+
+
+	/**
+	*...
+	*@author ww
+	*/
+	//class laya.debug.view.nodeInfo.nodetree.FindNodeSmall extends laya.debug.ui.debugui.FindNodeSmallUI
+	var FindNodeSmall=(function(_super){
+		function FindNodeSmall(){
+			FindNodeSmall.__super.call(this);
+			Base64AtlasManager.replaceRes(FindNodeSmallUI.uiView);
+			this.createView(FindNodeSmallUI.uiView);
+		}
+
+		__class(FindNodeSmall,'laya.debug.view.nodeInfo.nodetree.FindNodeSmall',_super);
+		var __proto=FindNodeSmall.prototype;
+		__proto.createChildren=function(){}
+		return FindNodeSmall;
+	})(FindNodeSmallUI)
 
 
 	/**
@@ -41176,5 +41160,5 @@ var Laya=window.Laya=(function(window,document){
 
 
 /*
-1 file:///D:/stocksite.git/trunk/StockView/src/laya/stock/analysers/AnalyserBase.as (160):warning:color This variable is not defined.
+1 file:///D:/lovekxy/codes/python/stocksite.git/trunk/StockView/src/laya/stock/analysers/AnalyserBase.as (160):warning:color This variable is not defined.
 */
