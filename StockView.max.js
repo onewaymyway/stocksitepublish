@@ -1241,7 +1241,7 @@ var Laya=window.Laya=(function(window,document){
 			for (i=0;i < len;i++){
 				values[i]=ValueTools.mParseFloat(values[i])*barHeight;
 			}
-			gridLine.push(0,this.dataList.length-1,values,/*no*/this.color,gridLineValue.split(","));
+			gridLine.push(0,this.disDataList.length-1,values,/*no*/this.color,gridLineValue.split(","));
 			this.resultData["gridLine"]=gridLine;
 		}
 
