@@ -2762,6 +2762,7 @@ var Laya=window.Laya=(function(window,document){
 	//class StockMain
 	var StockMain=(function(){
 		function StockMain(){
+			this.stockMainBox=null;
 			Laya.init(1000,900);
 			Laya.stage.scaleMode="full";
 			Laya.stage.screenMode="horizontal";
@@ -2778,9 +2779,9 @@ var Laya=window.Laya=(function(window,document){
 		__proto.start=function(){
 			StockBasicInfo.I.init(Loader.getRes(PathConfig.stockBasic));
 			this.testMainView();
-			SohuDData.getData("601918",null);
 		}
 
+		//SohuDData.getData("601918",null);
 		__proto.begin=function(){
 			var view;
 			view=new StockView();
@@ -2807,10 +2808,34 @@ var Laya=window.Laya=(function(window,document){
 		}
 
 		__proto.testMainView=function(){
+			this.stockMainBox=new Box();
+			this.onStageResize();
+			Laya.stage.on("resize",this,this.onStageResize);
 			var mainView;
 			mainView=new MainView();
 			mainView.left=mainView.right=mainView.top=mainView.bottom=10;
-			Laya.stage.addChild(mainView);
+			this.stockMainBox.addChild(mainView);
+			Laya.stage.addChild(this.stockMainBox);
+			MultiTouchManager.I.on("Scale",this,this.onScaleEvent);
+		}
+
+		//private var curPoint:Sprite;
+		__proto.onScaleEvent=function(scale,centerPoint){
+			this.stockMainBox.globalToLocal(centerPoint);
+			if (scale > 1.5){
+				this.stockMainBox.scaleX=this.stockMainBox.scaleY=2;
+				this.stockMainBox.pivot(centerPoint.x,centerPoint.y);
+				this.stockMainBox.pos(centerPoint.x,centerPoint.y);
+				}else if (scale < 0.6){
+				this.stockMainBox.pivot(0,0);
+				this.stockMainBox.pos(0,0);
+				this.stockMainBox.scaleX=this.stockMainBox.scaleY=1;
+			}
+		}
+
+		//curPoint.pos(centerPoint.x,centerPoint.y);
+		__proto.onStageResize=function(){
+			this.stockMainBox.size(Laya.stage.width,Laya.stage.height);
 		}
 
 		__proto.testStockInfo=function(){
@@ -5341,6 +5366,71 @@ var Laya=window.Laya=(function(window,document){
 
 		]);
 		return DebugExport;
+	})()
+
+
+	/**
+	*...
+	*@author ww
+	*/
+	//class laya.debug.tools.DebugTxt
+	var DebugTxt=(function(){
+		function DebugTxt(){}
+		__class(DebugTxt,'laya.debug.tools.DebugTxt');
+		DebugTxt.init=function(){
+			if (DebugTxt._txt)return;
+			DebugTxt._txt=new Text();
+			DebugTxt._txt.pos(100,100);
+			DebugTxt._txt.color="#ff00ff";
+			DebugTxt._txt.zOrder=999;
+			DebugTxt._txt.fontSize=24;
+			DebugTxt._txt.text="debugTxt inited";
+			Laya.stage.addChild(DebugTxt._txt);
+		}
+
+		DebugTxt.getArgArr=function(arg){
+			var rst;
+			rst=[];
+			var i=0,len=arg.length;
+			for(i=0;i<len;i++){
+				rst.push(arg[i]);
+			}
+			return rst;
+		}
+
+		DebugTxt.dTrace=function(__arg){
+			var arg=arguments;
+			arg=DebugTxt.getArgArr(arg);
+			var str;
+			str=arg.join(" ");
+			if (DebugTxt._txt){
+				DebugTxt._txt.text=str+"\n"+DebugTxt._txt.text;
+			}
+		}
+
+		DebugTxt.getTimeStr=function(){
+			var dateO=new Date();
+			return dateO.toTimeString();
+		}
+
+		DebugTxt.traceTime=function(msg){
+			DebugTxt.dTrace(DebugTxt.getTimeStr());
+			DebugTxt.dTrace(msg);
+		}
+
+		DebugTxt.show=function(__arg){
+			var arg=arguments;
+			arg=DebugTxt.getArgArr(arg);
+			var str;
+			str=arg.join(" ");
+			if (DebugTxt._txt){
+				DebugTxt._txt.text=str;
+			}
+		}
+
+		DebugTxt._txt=null
+		DebugTxt.I=null
+		return DebugTxt;
 	})()
 
 
@@ -10352,6 +10442,7 @@ var Laya=window.Laya=(function(window,document){
 		}
 
 		__proto.onMouseMove=function(ele){
+			MultiTouchManager.I.onMouseMove(this._event.touchId);
 			this.sendMouseMove(ele);
 			this._event._stoped=false;
 			this.sendMouseOver(this._target);
@@ -10377,6 +10468,8 @@ var Laya=window.Laya=(function(window,document){
 			if (Input.isInputting && Laya.stage.focus && Laya.stage.focus["focus"] && !Laya.stage.focus.contains(this._target)){
 				Laya.stage.focus["focus"]=false;
 			}
+			MultiTouchManager.I.onMouseDown(this._event.touchId);
+			if (MultiTouchManager.I.isMultiDown())return;
 			this._onMouseDown(ele);
 		}
 
@@ -10393,6 +10486,7 @@ var Laya=window.Laya=(function(window,document){
 
 		__proto.onMouseUp=function(ele){
 			var type=this._isLeftMouse ? "mouseup" :"rightmouseup";
+			MultiTouchManager.I.onMouseUp(this._event.touchId);
 			this.sendMouseUp(ele,type);
 			this._event._stoped=false;
 			this.sendClick(this._target,type);
@@ -19070,6 +19164,119 @@ var Laya=window.Laya=(function(window,document){
 		['I',function(){return this.I=new Notice();}
 		]);
 		return Notice;
+	})(EventDispatcher)
+
+
+	/**
+	*...
+	*@author ...
+	*/
+	//class laya.events.MultiTouchManager extends laya.events.EventDispatcher
+	var MultiTouchManager=(function(_super){
+		function MultiTouchManager(){
+			this.downDic={};
+			this.curDic={};
+			this.curDownCount=0;
+			MultiTouchManager.__super.call(this);
+		}
+
+		__class(MultiTouchManager,'laya.events.MultiTouchManager',_super);
+		var __proto=MultiTouchManager.prototype;
+		__proto.clearDic=function(dic){
+			var key;
+			var tPoint;
+			for (key in dic){
+				tPoint=dic[key];
+				if ((tPoint instanceof laya.maths.Point )){
+					tPoint.setTo(0,0);
+					Pool.recover("PointSign",tPoint);
+					delete dic[key];
+				}
+			}
+		}
+
+		__proto.resetState=function(){
+			this.clearDic(this.downDic);
+			this.clearDic(this.curDic);
+			this.curDownCount=0;
+		}
+
+		__proto.onMouseMove=function(touchID){
+			if (!this.curDic[touchID])return;
+			this.setPointToStagePoint(this.curDic,touchID);
+		}
+
+		__proto.setPointToStagePoint=function(dic,touchID){
+			var tPoint;
+			tPoint=dic[touchID];
+			if (!tPoint)return;
+			tPoint.setTo(MouseManager.instance.mouseX,MouseManager.instance.mouseY);
+		}
+
+		__proto.isMultiDown=function(){
+			return this.curDownCount > 1;
+		}
+
+		__proto.onMouseDown=function(touchID){
+			if (!this.downDic[touchID]){
+				this.downDic[touchID]=Pool.getItemByClass("PointSign",Point);
+				this.curDownCount+=1;
+			}
+			this.setPointToStagePoint(this.downDic,touchID);
+			if (!this.curDic[touchID]){
+				this.curDic[touchID]=Pool.getItemByClass("PointSign",Point);
+			}
+			this.setPointToStagePoint(this.curDic,touchID);
+			if (this.curDownCount > 1)this.event("MultiStart");
+		}
+
+		__proto.checkMouseGesture=function(){
+			var key;
+			var pointParis;
+			pointParis=[];
+			for (key in this.downDic){
+				if (this.curDic[key]){
+					pointParis.push([this.downDic[key],this.curDic[key]]);
+				}
+			}
+			if (pointParis.length==2){
+				var preDistance=NaN;
+				preDistance=this.getPointDistance(pointParis[0][0],pointParis[1][0]);
+				var curDistance=NaN;
+				curDistance=this.getPointDistance(pointParis[0][1],pointParis[1][1]);
+				var scaleValue=NaN;
+				scaleValue=curDistance / preDistance;
+				MultiTouchManager._centerPoint.x=0.5 *(pointParis[0][0].x+pointParis[1][0].x);
+				MultiTouchManager._centerPoint.y=0.5 *(pointParis[0][0].y+pointParis[1][0].y);
+				if (Math.abs(curDistance-preDistance)> 50){
+					this.event("Scale",[scaleValue,MultiTouchManager._centerPoint]);
+				}
+			}
+		}
+
+		__proto.getPointDistance=function(pA,pB){
+			return pA.distance(pB.x,pB.y);
+		}
+
+		__proto.onMouseUp=function(touchID){
+			if (!this.curDic[touchID]){
+				this.resetState();
+				return;
+			}
+			DebugTxt.dTrace("onMouseUp:",this.curDownCount);
+			if (this.curDownCount==2){
+				this.checkMouseGesture();
+			}
+			this.resetState();
+		}
+
+		MultiTouchManager.Scale="Scale";
+		MultiTouchManager.MultiStart="MultiStart";
+		MultiTouchManager.PointSign="PointSign";
+		__static(MultiTouchManager,
+		['I',function(){return this.I=new MultiTouchManager();},'_centerPoint',function(){return this._centerPoint=new Point();}
+		]);
+		return MultiTouchManager;
 	})(EventDispatcher)
 
 
@@ -39170,6 +39377,7 @@ var Laya=window.Laya=(function(window,document){
 			this.tradeTest.on("NEXT_Day",this,this.onNextDay);
 			this.tradeTest.on("ANOTHER",this,this.onAnotherTradeTest);
 			if (Browser.onMobile)this.tradeSelect.scaleX=this.tradeSelect.scaleY=2;
+			MultiTouchManager.I.on("MultiStart",this,this.clearAllMouseDown);
 		}
 
 		__class(KLineView,'view.KLineView',_super);
@@ -39288,11 +39496,18 @@ var Laya=window.Laya=(function(window,document){
 			this.isMyMouseDown=false;
 			if (e.target !=this)
 				return;
+			if (MultiTouchManager.I.isMultiDown())return;
 			this.isMyMouseDown=true;
 			this.preMouseX=Laya.stage.mouseX;
 			this.isLongPress=false;
 			Laya.timer.once(800,this,this.longDown);
 			this.updateDayLine();
+		}
+
+		__proto.clearAllMouseDown=function(){
+			Laya.timer.clear(this,this.longDown);
+			Laya.timer.clear(this,this.loopChangeDay);
+			this.isMyMouseDown=false;
 		}
 
 		__proto.longDown=function(){
@@ -40740,26 +40955,6 @@ var Laya=window.Laya=(function(window,document){
 	*...
 	*@author ww
 	*/
-	//class laya.debug.view.nodeInfo.nodetree.NodeTreeSetting extends laya.debug.ui.debugui.NodeTreeSettingUI
-	var NodeTreeSetting=(function(_super){
-		function NodeTreeSetting(){
-			NodeTreeSetting.__super.call(this);
-			Base64AtlasManager.replaceRes(NodeTreeSettingUI.uiView);
-			this.createView(NodeTreeSettingUI.uiView);
-		}
-
-		__class(NodeTreeSetting,'laya.debug.view.nodeInfo.nodetree.NodeTreeSetting',_super);
-		var __proto=NodeTreeSetting.prototype;
-		//inits();
-		__proto.createChildren=function(){}
-		return NodeTreeSetting;
-	})(NodeTreeSettingUI)
-
-
-	/**
-	*...
-	*@author ww
-	*/
 	//class laya.debug.view.nodeInfo.nodetree.NodeTree extends laya.debug.ui.debugui.NodeTreeUI
 	var NodeTree=(function(_super){
 		function NodeTree(){
@@ -41003,6 +41198,26 @@ var Laya=window.Laya=(function(window,document){
 	*...
 	*@author ww
 	*/
+	//class laya.debug.view.nodeInfo.nodetree.NodeTreeSetting extends laya.debug.ui.debugui.NodeTreeSettingUI
+	var NodeTreeSetting=(function(_super){
+		function NodeTreeSetting(){
+			NodeTreeSetting.__super.call(this);
+			Base64AtlasManager.replaceRes(NodeTreeSettingUI.uiView);
+			this.createView(NodeTreeSettingUI.uiView);
+		}
+
+		__class(NodeTreeSetting,'laya.debug.view.nodeInfo.nodetree.NodeTreeSetting',_super);
+		var __proto=NodeTreeSetting.prototype;
+		//inits();
+		__proto.createChildren=function(){}
+		return NodeTreeSetting;
+	})(NodeTreeSettingUI)
+
+
+	/**
+	*...
+	*@author ww
+	*/
 	//class laya.debug.view.nodeInfo.nodetree.ObjectCreate extends laya.debug.ui.debugui.ObjectCreateUI
 	var ObjectCreate=(function(_super){
 		function ObjectCreate(){
@@ -41153,7 +41368,7 @@ var Laya=window.Laya=(function(window,document){
 	})(ToolBarUI)
 
 
-	Laya.__init([LoaderManager,EventDispatcher,Render,Browser,LocalStorage,View,Timer]);
+	Laya.__init([EventDispatcher,LoaderManager,Render,Browser,LocalStorage,View,Timer]);
 	new StockMain();
 
 })(window,document,Laya);
