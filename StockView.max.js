@@ -25037,10 +25037,16 @@ var Laya=window.Laya=(function(window,document){
 					if (dataList[i]){
 						prePrice=dataList[buyI]["high"]
 						tData=dataList[i];
-						curPrice=tData["close"]
+						curPrice=this.markO.sellPrice||tData["close"]
 						tPos=this.getAdptXV(i *this.gridWidth);
 						this.graphics.drawLine(tPos,this.getAdptYV(tData["low"]),tPos,this.getAdptYV(tData["low"])+30,"#00ff00");
-						this.graphics.fillText("Sell:"+StockTools.getGoodPercent((curPrice-prePrice)/prePrice)+"%"+tData["date"],tPos,this.getAdptYV(tData["low"])+30,null,"#00ff00","center");
+						var curInfo;
+						if (this.markO.sellReason){
+							curInfo="Sell:"+StockTools.getGoodPercent((curPrice-prePrice)/ prePrice)+"%"+this.markO.sellReason;
+							}else{
+							curInfo="Sell:"+StockTools.getGoodPercent((curPrice-prePrice)/ prePrice)+"%"+tData["date"];
+						}
+						this.graphics.fillText(curInfo,tPos,this.getAdptYV(tData["low"])+30,null,"#00ff00","center");
 					}
 				}
 			}
@@ -39965,9 +39971,10 @@ var Laya=window.Laya=(function(window,document){
 				var showStr;
 				if (preStockData){
 					showStr=tStockData.date+
-					"\n"+"Close:"+tStockData.close+":"+StockTools.getGoodPercent((tStockData.close-preStockData.open)/ preStockData.close)+"%"+
-					"\n"+"High:"+tStockData.high+":"+StockTools.getGoodPercent((tStockData.high-preStockData.open)/ preStockData.close)+"%"+
-					"\n"+"Low:"+tStockData.low+":"+StockTools.getGoodPercent((tStockData.low-preStockData.open)/ preStockData.close)+"%";
+					"\n"+"Open:"+tStockData.open+":"+StockTools.getGoodPercent((tStockData.open-preStockData.close)/ preStockData.close)+"%"+
+					"\n"+"Close:"+tStockData.close+":"+StockTools.getGoodPercent((tStockData.close-preStockData.close)/ preStockData.close)+"%"+
+					"\n"+"High:"+tStockData.high+":"+StockTools.getGoodPercent((tStockData.high-preStockData.close)/ preStockData.close)+"%"+
+					"\n"+"Low:"+tStockData.low+":"+StockTools.getGoodPercent((tStockData.low-preStockData.close)/ preStockData.close)+"%";
 					if (tStockData.close-tStockData.open >=0){
 						this.dayStockInfoTxt.color="#ff0000";
 					}
