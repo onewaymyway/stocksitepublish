@@ -403,6 +403,17 @@ var Laya=window.Laya=(function(window,document){
 			}
 		}
 
+		ArrayMethods.getItemValues=function(arr,key){
+			var i=0,len=0;
+			len=arr.length;
+			var rst;
+			rst=[];
+			for (i=0;i < len;i++){
+				rst.push(arr[i][key]);
+			}
+			return rst;
+		}
+
 		ArrayMethods.findFirstLowThen=function(v,arr,startPos,step){
 			(step===void 0)&& (step=1);
 			return 0;
@@ -499,6 +510,18 @@ var Laya=window.Laya=(function(window,document){
 			return rst;
 		}
 
+		ArrayMethods.count=function(dataList,key,judgeFun){
+			var i=0,len=0;
+			len=dataList.length;
+			var rst=0;
+			for (i=0;i < len;i++){
+				if (judgeFun(dataList[i][key])){
+					rst++;
+				}
+			}
+			return rst;
+		}
+
 		ArrayMethods.sumKey=function(dataList,key,start,end){
 			(start===void 0)&& (start=0);
 			(end===void 0)&& (end=-1);
@@ -527,6 +550,22 @@ var Laya=window.Laya=(function(window,document){
 			}
 			for (i=start;i < len;i++){
 				rst+=dataList[i][key];
+			}
+			return rst/(len-start);
+		}
+
+		ArrayMethods.averageFun=function(dataList,fun,start,end){
+			(start===void 0)&& (start=0);
+			(end===void 0)&& (end=-1);
+			var rst=NaN;
+			rst=0;
+			var i=0,len=0;
+			len=dataList.length;
+			if (end >=0){
+				len=Math.min(end+1,len);
+			}
+			for (i=start;i < len;i++){
+				rst+=fun(dataList[i]);
 			}
 			return rst/(len-start);
 		}
@@ -915,6 +954,69 @@ var Laya=window.Laya=(function(window,document){
 			return sum;
 		}
 
+		DataUtils.getUpStopPrice=function(price){
+			var rst=NaN;
+			rst=price *1.1;
+			rst=Math.floor(rst *100+0.5)/ 100;
+			return rst;
+		}
+
+		DataUtils.isUpStopAt=function(dataList,i,once){
+			(once===void 0)&& (once=false);
+			if (!dataList||!dataList[i])return false;
+			var tData;
+			tData=dataList[i];
+			var preData;
+			preData=dataList[i-1];
+			if (!preData)return false;
+			if (once){
+				return tData.high >=DataUtils.getUpStopPrice(preData.close);
+			}
+			return tData.close >=DataUtils.getUpStopPrice(preData.close);
+		}
+
+		DataUtils.isUpStop=function(dataList,i){
+			if (!dataList||!dataList[i])return false;
+			var tData;
+			tData=dataList[i];
+			if (tData.high !=tData.low)return false;
+			var preData;
+			preData=dataList[i-1];
+			if (!preData)return false;
+			return tData.high > preData.close;
+		}
+
+		DataUtils.getContinueUpStops=function(dataList,i){
+			(i===void 0)&& (i=-1);
+			if (i<0||i>=dataList.length)i=dataList.length-1;
+			var count=0;
+			while (i >=0){
+				if (DataUtils.isUpStop(dataList,i)){
+					count++;
+					}else{
+					break ;
+				}
+				i--;
+			}
+			return count;
+		}
+
+		DataUtils.getContinueCounts=function(dataList,i,fun){
+			(i===void 0)&& (i=-1);
+			if (fun==null)return 0;
+			if (i<0||i>=dataList.length)i=dataList.length-1;
+			var count=0;
+			while (i >=0){
+				if (fun(dataList,i)){
+					count++;
+					}else{
+					break ;
+				}
+				i--;
+			}
+			return count;
+		}
+
 		DataUtils.K_Top="top";
 		DataUtils.K_Bottom="bottom";
 		DataUtils.K_Unknow="unknow";
@@ -1038,6 +1140,50 @@ var Laya=window.Laya=(function(window,document){
 		}
 
 		return Distribution;
+	})()
+
+
+	/**
+	*...
+	*@author ww
+	*/
+	//class laya.math.structs.ListDic
+	var ListDic=(function(){
+		function ListDic(){
+			this.dataO=null;
+		}
+
+		__class(ListDic,'laya.math.structs.ListDic');
+		var __proto=ListDic.prototype;
+		__proto.fromList=function(dataList,key){
+			this.dataO={};
+			var i=0,len=0;
+			len=dataList.length;
+			var tData;
+			var tKey;
+			for (i=0;i < len;i++){
+				tData=dataList[i];
+				tKey=tData[key];
+				if (!this.dataO[tKey]){
+					this.dataO[tKey]=[];
+				}
+				this.dataO[tKey].push(tData);
+			}
+		}
+
+		__proto.getData=function(key){
+			if (!this.dataO)return null;
+			return this.dataO[key];
+		}
+
+		ListDic.createByList=function(dataList,key){
+			var listDic;
+			listDic=new ListDic();
+			listDic.fromList(dataList,key);
+			return listDic;
+		}
+
+		return ListDic;
 	})()
 
 
@@ -1384,7 +1530,7 @@ var Laya=window.Laya=(function(window,document){
 
 		__proto.addToConfigTypes=function(types){}
 		__proto.addToShowData=function(showData){}
-		__proto.addGridLine=function(barHeight,gridLineValue){
+		__proto.addGridLine=function(barHeight,gridLineValue,color){
 			var i=0,len=0;
 			var gridLine;
 			gridLine=[];
@@ -1394,7 +1540,7 @@ var Laya=window.Laya=(function(window,document){
 			for (i=0;i < len;i++){
 				values[i]=ValueTools.mParseFloat(values[i])*barHeight;
 			}
-			gridLine.push(0,this.disDataList.length-1,values,/*no*/this.color,gridLineValue.split(","));
+			gridLine.push(0,this.disDataList.length-1,values,color,gridLineValue.split(","));
 			this.resultData["gridLine"]=gridLine;
 		}
 
@@ -1880,13 +2026,67 @@ var Laya=window.Laya=(function(window,document){
 	*...
 	*@author ww
 	*/
+	//class laya.stock.StockNoticeManager
+	var StockNoticeManager=(function(){
+		function StockNoticeManager(){}
+		__class(StockNoticeManager,'laya.stock.StockNoticeManager');
+		var __proto=StockNoticeManager.prototype;
+		__proto.loadStockNotice=function(stock){
+			stock=StockTools.getPureStock(stock);
+			if (StockNoticeManager._stockDic[stock])return;
+			var noticeData;
+			noticeData=new StockNoticeData();
+			noticeData.load(stock,Handler.create(this,this.onNoticeLoaded,[noticeData,stock]));
+		}
+
+		__proto.getStockNotice=function(stock){
+			return StockNoticeManager._stockDic[stock];
+		}
+
+		__proto.onNoticeLoaded=function(noticeData,stock){
+			StockNoticeManager._stockDic[stock]=noticeData;
+			Notice.notify("Stock_NoticeLoaded",[stock]);
+			Notice.notify("Fresh_KLineView");
+		}
+
+		StockNoticeManager._stockDic={};
+		StockNoticeManager.noticeTypes=[];
+		__static(StockNoticeManager,
+		['I',function(){return this.I=new StockNoticeManager();}
+		]);
+		return StockNoticeManager;
+	})()
+
+
+	/**
+	*...
+	*@author ww
+	*/
 	//class laya.stock.StockTools
 	var StockTools=(function(){
 		function StockTools(){}
 		__class(StockTools,'laya.stock.StockTools');
+		StockTools.DebugMode=function(){
+			StockTools.NoticePath="D:/lovekxy/codes/python/stocknotice.git/trunk/notices/";
+			StockTools.StockPath="D:/lovekxy/codes/python/stockdata.git/trunk/";
+		}
+
+		StockTools.getStockNoticePath=function(stock){
+			stock=StockTools.getPureStock(stock);
+			var stockUrl;
+			stockUrl=StockTools.NoticePath+stock+".csv";
+			return stockUrl;
+		}
+
 		StockTools.getStockCsvPath=function(stock){
 			var stockUrl;
-			stockUrl="https://onewaymyway.github.io/stockdata/stockdatas/"+stock+".csv";
+			stockUrl=StockTools.StockPath+"stockdatas/"+stock+".csv";
+			return stockUrl;
+		}
+
+		StockTools.getStockPicPath=function(stock){
+			var stockUrl;
+			stockUrl=StockTools.StockPath+"smallpics/"+stock+".png";
 			return stockUrl;
 		}
 
@@ -1942,8 +2142,267 @@ var Laya=window.Laya=(function(window,document){
 			return dataList[index][type];
 		}
 
+		StockTools.getContinueDownCount=function(dataList,index,key){
+			(key===void 0)&& (key="close");
+			var rst=0;
+			rst=0;
+			while (dataList[index-1] && dataList[index-1][key] > dataList[index][key]){
+				index--;
+				rst++;
+			}
+			return rst;
+		}
+
 		StockTools.getStockPriceEx=function(index,type,analyser){
 			return StockTools.getStockPrice(index,type,analyser.disDataList);
+		}
+
+		StockTools.getStockKeyRateAtDay=function(dataList,index,key){
+			if (!dataList[index] || !dataList[index-1])return-1;
+			return dataList[index][key] / dataList[index-1][key];
+		}
+
+		StockTools.getStockRateAtDay=function(dataList,index){
+			if (!dataList[index] || !dataList[index-1])return-1;
+			return dataList[index]["close"] / dataList[index-1]["close"];
+		}
+
+		StockTools.getBodyRate=function(dataList,index){
+			if (!dataList[index])return-1;
+			var tData;
+			tData=dataList[index];
+			var totalLen=NaN;
+			totalLen=tData["high"]-tData["low"];
+			if (totalLen==0)return-1;
+			var tBLine=NaN;
+			tBLine=Math.abs(tData["close"]-tData["open"]);
+			var tLineRate=NaN;
+			tLineRate=tBLine / totalLen;
+			return tLineRate;
+		}
+
+		StockTools.getStockFallDownPartRate=function(dataList,index){
+			if (!dataList[index])return-1;
+			var tData;
+			tData=dataList[index];
+			var totalLen=NaN;
+			totalLen=tData["high"]-tData["low"];
+			if (totalLen==0)return-1;
+			var tBLine=NaN;
+			tBLine=Math.max(tData["close"],tData["open"]);
+			var tLineRate=NaN;
+			tLineRate=(tBLine-tData["low"])/ totalLen;
+			return tLineRate;
+		}
+
+		StockTools.getStockBounceUpPartRate=function(dataList,index){
+			if (!dataList[index])return-1;
+			var tData;
+			tData=dataList[index];
+			var totalLen=NaN;
+			totalLen=tData["high"]-tData["low"];
+			if (totalLen==0)return-1;
+			var tBLine=NaN;
+			tBLine=Math.min(tData["close"],tData["open"]);
+			var tLineRate=NaN;
+			tLineRate=(tBLine-tData["low"])/ totalLen;
+			return tLineRate;
+		}
+
+		StockTools.isAttackUpFailAtDay=function(dataList,index){
+			if (!dataList[index])return false;
+			var tData;
+			tData=dataList[index];
+			var bodyLen=NaN;
+			bodyLen=Math.abs((tData["close"]-tData["open"]));
+			var totalLen=NaN;
+			totalLen=tData["high"]-tData["low"];
+			var tBLine=NaN;
+			tBLine=Math.max(tData["close"],tData["open"]);
+			var tLineRate=NaN;
+			tLineRate=(tBLine-tData["low"])/ totalLen;
+			return tLineRate < 0.25;
+		}
+
+		StockTools.isDownTrendAtDay=function(dataList,index){
+			if (!dataList[index-1])return false;
+			var preData;
+			var tData;
+			preData=dataList[index-1];
+			tData=dataList[index];
+			return tData["high"] < preData["high"] && tData["low"] < preData["low"];
+		}
+
+		StockTools.getDayLineRateAtDay=function(dataList,index,dayCount,offset,key){
+			(dayCount===void 0)&& (dayCount=5);
+			(offset===void 0)&& (offset=-1);
+			(key===void 0)&& (key="close");
+			var preValue=NaN;
+			preValue=StockTools.getDayLineAtDay(dataList,index-1,dayCount,offset,key);
+			var curValue=NaN;
+			curValue=StockTools.getDayLineAtDay(dataList,index,dayCount,offset,key);
+			if (preValue==0)return 0;
+			return curValue / preValue;
+		}
+
+		StockTools.getContinueDayLineAngleDownCount=function(dataList,index,dayCount,offset,key){
+			(dayCount===void 0)&& (dayCount=5);
+			(offset===void 0)&& (offset=-1);
+			(key===void 0)&& (key="close");
+			var rst=0;
+			rst=0;
+			while (dataList[index-1] && StockTools.getDayLineAngleDay(dataList,index-1,dayCount,offset,key)> StockTools.getDayLineAngleDay(dataList,index,dayCount,offset,key)){
+				index--;
+				rst++;
+			}
+			return rst;
+		}
+
+		StockTools.getDayLineAngleDay=function(dataList,index,dayCount,offset,key){
+			(dayCount===void 0)&& (dayCount=5);
+			(offset===void 0)&& (offset=-1);
+			(key===void 0)&& (key="close");
+			var preValue=NaN;
+			preValue=StockTools.getDayLineAtDay(dataList,index-1,dayCount,offset,key);
+			var curValue=NaN;
+			curValue=StockTools.getDayLineAtDay(dataList,index,dayCount,offset,key);
+			if (preValue==0)return 0;
+			var dValue=NaN;
+			dValue=curValue-preValue;
+			var angle=NaN;
+			angle=Math.atan2(dValue,1);
+			angle=angle*180 / Math.PI;
+			return angle;
+		}
+
+		StockTools.getDayLineAtDay=function(dataList,index,dayCount,offset,key){
+			(dayCount===void 0)&& (dayCount=5);
+			(offset===void 0)&& (offset=-1);
+			(key===void 0)&& (key="close");
+			if (index==0)
+				return 0;
+			var startI=0;
+			startI=index-dayCount+1+offset;
+			if (startI < 0)
+				startI=0;
+			var average=NaN;
+			average=ArrayMethods.averageKey(dataList,key,startI,index+offset);
+			return average;
+		}
+
+		StockTools.isUpTrendAtDay=function(dataList,index){
+			if (!dataList[index-1])return false;
+			var preData;
+			var tData;
+			preData=dataList[index-1];
+			tData=dataList[index];
+			return tData["high"] > preData["high"] && tData["low"] > preData["low"];
+		}
+
+		StockTools.isTopConer=function(dataList,index){
+			if (!dataList[index-2])return false;
+			return StockTools.isUpTrendAtDay(dataList,index-1)&& StockTools.isDownTrendAtDay(dataList,index);
+		}
+
+		StockTools.isDownBreakContainAtDay=function(dataList,index){
+			if (!dataList[index-1])return false;
+			if (!StockTools.isContainedByBefore(dataList,index-1))return false;
+			return dataList[index]["close"] < dataList[index-2]["low"];
+		}
+
+		StockTools.isContainedByBefore=function(dataList,index){
+			if (!dataList[index-1])return false;
+			var preData;
+			var tData;
+			preData=dataList[index-1];
+			tData=dataList[index];
+			return tData["high"] < preData["high"] && tData["low"] > preData["low"];
+		}
+
+		StockTools.getUpStopValue=function(price){
+			return Math.round(price *1.1 *1000)/ 1000;
+		}
+
+		StockTools.getDownStopValue=function(price){
+			return Math.round(price *0.9 *1000)/ 1000;
+		}
+
+		StockTools.getNoDownUpRateBeforeDay=function(dataList,index){
+			var curHigh=NaN;
+			curHigh=dataList[index]["high"];
+			var dayCount=0;
+			dayCount=0;
+			var tLow=0;
+			while (dataList[index-1] && (dataList[index-1]["low"]<dataList[index]["low"]||StockTools.getChangePriceAtDay(dataList,index-1)> 0 || StockTools.getStockRateAtDay(dataList,index-1)> 1)){
+				index--;
+				dayCount++;
+				if (tLow <=0 || dataList[index]["low"] < tLow){
+					tLow=dataList[index]["low"]
+				}
+			}
+			if (tLow <=0)return 0;
+			return curHigh/tLow;
+		}
+
+		StockTools.findTopPoints=function(dataList,start,end,leftLimit,rightLimit,onlyPrice){
+			(leftLimit===void 0)&& (leftLimit=6);
+			(rightLimit===void 0)&& (rightLimit=6);
+			(onlyPrice===void 0)&& (onlyPrice=false);
+			var rst;
+			rst=[];
+			var i=0,len=0;
+			if (start < 0)start=0;
+			for (i=start+leftLimit;i < end-rightLimit;i++){
+				if (StockTools.isTopPoint(dataList,i,leftLimit,rightLimit)){
+					if (onlyPrice){
+						rst.push(dataList[i]["high"]);
+						}else{
+						rst.push({"index":i,"price":dataList[i]["high"]});
+					}
+				}
+			}
+			return rst;
+		}
+
+		StockTools.isTopPoint=function(dataList,index,leftLimit,rightLimit){
+			var curValue=NaN;
+			var i=0,len=0;
+			var tIndex=0;
+			var tValue=NaN;
+			curValue=dataList[index]["high"];
+			len=leftLimit;
+			for (i=0;i < len;i++){
+				tIndex=index-i-1;
+				tValue=dataList[tIndex]["high"];
+				if (tValue > curValue)return false;
+			}
+			len=rightLimit;
+			for (i=0;i < len;i++){
+				tIndex=index+i+1;
+				tValue=dataList[tIndex]["high"];
+				if (tValue > curValue)return false;
+			}
+			return true;
+		}
+
+		StockTools.getChangePriceAtDay=function(dataList,index){
+			return dataList[index]["close"]-dataList[index]["open"];
+		}
+
+		StockTools.getChangeDownDays=function(dataList,index,len){
+			var rst=NaN;
+			rst=0;
+			var i=0;
+			var tData;
+			for (i=0;i < len;i++){
+				tData=dataList[index-i];
+				if (tData){
+					if (tData["close"] < tData["open"]){
+						rst++;
+					}
+				}
+			}
+			return rst;
 		}
 
 		StockTools.getBuyStaticInfos=function(buyI,dataList,rst){
@@ -2013,6 +2472,8 @@ var Laya=window.Laya=(function(window,document){
 			return true;
 		}
 
+		StockTools.NoticePath="https://onewaymyway.github.io/stocknotice/notices/";
+		StockTools.StockPath="https://onewaymyway.github.io/stockdata/";
 		__static(StockTools,
 		['highDays',function(){return this.highDays=[7,15,30,45,60];}
 		]);
@@ -2781,6 +3242,7 @@ var Laya=window.Laya=(function(window,document){
 		MsgConst.Show_Next_Select="Show_Next_Select";
 		MsgConst.Show_Pre_Select="Show_Pre_Select";
 		MsgConst.AnalyserListChange="AnalyserListChange";
+		MsgConst.Fresh_KLineView="Fresh_KLineView";
 		MsgConst.Show_Analyser_Prop="Show_Analyser_Prop";
 		MsgConst.Hide_Analyser_Prop="Hide_Analyser_Prop";
 		MsgConst.Set_Analyser_Prop="Set_Analyser_Prop";
@@ -2792,6 +3254,7 @@ var Laya=window.Laya=(function(window,document){
 		MsgConst.Add_MDLine="Add_MDLine";
 		MsgConst.Remove_MDLine="Remove_MDLine";
 		MsgConst.RealTimeItem_DoubleClick="RealTimeItem_DoubleClick";
+		MsgConst.Stock_NoticeLoaded="Stock_NoticeLoaded";
 		return MsgConst;
 	})()
 
@@ -18272,7 +18735,7 @@ var Laya=window.Laya=(function(window,document){
 			for (i=0;i < len;i++){
 				positionList.push(this.getWinLoseData(ValueTools.mParseFloat(days[i]),dataList));
 			}
-			this.addGridLine(this.barHeight,this.gridLineValue);
+			this.addGridLine(this.barHeight,this.gridLineValue,this.color);
 		}
 
 		__proto.getBuyList=function(positionData){
@@ -18411,6 +18874,109 @@ var Laya=window.Laya=(function(window,document){
 		}
 
 		return PositionLine;
+	})(AnalyserBase)
+
+
+	/**
+	*...
+	*@author ww
+	*/
+	//class laya.stock.analysers.NoticeAnalyser extends laya.stock.analysers.AnalyserBase
+	var NoticeAnalyser=(function(_super){
+		function NoticeAnalyser(){
+			this.noticeData=null;
+			this.showAll=0;
+			NoticeAnalyser.__super.call(this);
+		}
+
+		__class(NoticeAnalyser,'laya.stock.analysers.NoticeAnalyser',_super);
+		var __proto=NoticeAnalyser.prototype;
+		__proto.initParamKeys=function(){
+			this.paramkeys=["showAll"]
+		}
+
+		__proto.analyseWork=function(){
+			this.noticeAnalyse();
+		}
+
+		__proto.noticeAnalyse=function(){
+			var tStockName;
+			tStockName=this.stockData.stockName;
+			this.noticeData=StockNoticeManager.I.getStockNotice(tStockName);
+			if (!this.noticeData){
+				StockNoticeManager.I.loadStockNotice(tStockName);
+				return;
+			};
+			var dataList;
+			dataList=this.noticeData.noticeData;
+			var i=0,len=0;
+			len=this.disDataList.length;
+			var tData;
+			var tDate;
+			var tNoticeList;
+			var noticeList;
+			var noticeInfoList;
+			noticeList=[];
+			noticeInfoList=[];
+			for (i=0;i < len;i++){
+				tData=this.disDataList[i];
+				tDate=tData["date"];
+				tNoticeList=dataList.getData(tDate);
+				if (tNoticeList){
+					noticeList.push([i,tNoticeList]);
+					this.addNotices(noticeInfoList,i,tNoticeList);
+				}
+			}
+			this.resultData["noticeList"]=noticeList;
+			this.resultData["noticeInfoList"]=noticeInfoList;
+		}
+
+		__proto.isShowTitle=function(title){
+			if (this.showAll > 0)return true;
+			var i=0,len=0;
+			len=NoticeAnalyser.noShowKeyWords.length;
+			for (i=0;i < len;i++){
+				if (title.indexOf(NoticeAnalyser.noShowKeyWords[i])>=0)return false;
+			}
+			len=NoticeAnalyser.showKeyWords.length;
+			for (i=0;i < len;i++){
+				if (title.indexOf(NoticeAnalyser.showKeyWords[i])>=0)return true;
+			}
+			return false;
+		}
+
+		__proto.addNotices=function(infoList,index,noticeList){
+			var i=0,len=0;
+			len=noticeList.length;
+			var tNotice;
+			var tTitle;
+			var tCount=0;
+			tCount=0;
+			for (i=0;i < len;i++){
+				tNotice=noticeList[i];
+				tTitle=tNotice["title"];
+				if (this.isShowTitle(tTitle)){
+					if (tTitle.indexOf("：")>=0){
+						tTitle=tTitle.split("：")[1];
+					}
+					infoList.push([tTitle,index,tCount*20]);
+					tCount++;
+				}
+			}
+		}
+
+		__proto.getDrawCmds=function(){
+			var rst;
+			rst=[];
+			if(this.resultData["noticeInfoList"])
+				rst.push(["drawTexts",[this.resultData["noticeInfoList"],"low",50,"#ff0000",true,"#ff0000",true]]);
+			return rst;
+		}
+
+		__static(NoticeAnalyser,
+		['showKeyWords',function(){return this.showKeyWords=["增","减","融资","核准","重大事项","重要","合同","中标","重大资产","上市流通","补助","重组","股东","达成","冻结","季报","年报","质押","业绩","出售","非公开发行","终止","完成","关联交易","获得","拍卖","业务","解禁","员工持股","担保","股权激励","聘","重组","投资","辞职","收购","激励","分红","合作","购买","转让","募资"];},'noShowKeyWords',function(){return this.noShowKeyWords=["异常波动","回复","意见","说明"];}
+		]);
+		return NoticeAnalyser;
 	})(AnalyserBase)
 
 
@@ -18960,6 +19526,47 @@ var Laya=window.Laya=(function(window,document){
 
 		__proto.freshData=function(){}
 		return StockData;
+	})(CSVParser)
+
+
+	/**
+	*ww
+	*@author ...
+	*/
+	//class stock.StockNoticeData extends stock.CSVParser
+	var StockNoticeData=(function(_super){
+		function StockNoticeData(){
+			this._myLoader=null;
+			this.noticeData=null;
+			this._complete=null;
+			StockNoticeData.__super.call(this);
+			this._myLoader=new Loader();
+		}
+
+		__class(StockNoticeData,'stock.StockNoticeData',_super);
+		var __proto=StockNoticeData.prototype;
+		__proto.load=function(stock,complete){
+			this._complete=complete;
+			this._myLoader.once("complete",this,this.dataLoaded);
+			this._myLoader.load(StockTools.getStockNoticePath(stock),"text");
+		}
+
+		__proto.dataLoaded=function(data){
+			if (!data)return;
+			this.init(data);
+			if (this._complete){
+				this._complete.run();
+				this._complete=null;
+			}
+		}
+
+		__proto.init=function(csvStr){
+			_super.prototype.init.call(this,csvStr);
+			this.dataList.sort(MathUtil.sortByKey("date",false,false));
+			this.noticeData=ListDic.createByList(this.dataList,"date");
+		}
+
+		return StockNoticeData;
 	})(CSVParser)
 
 
@@ -22182,6 +22789,7 @@ var Laya=window.Laya=(function(window,document){
 		function AverageLineAnalyser(){
 			this.showBuy=0;
 			this.showTrend=1;
+			this.color="#ffff00";
 			this.barHeight=500;
 			AverageLineAnalyser.__super.call(this);
 			this.days="5,12,26";
@@ -22273,7 +22881,7 @@ var Laya=window.Laya=(function(window,document){
 					distanceList.push([i,this.barHeight *this.getAvgDistance(avgs,i),AverageLineAnalyser._colorDic[this.getTrendType(avgs,i)]]);
 				}
 				this.resultData["distanceList"]=distanceList;
-				this.addGridLine(this.barHeight,"0,0.025,0.05,0.1,0.15,0.20,0.25");
+				this.addGridLine(this.barHeight,"0,0.025,0.05,0.1,0.15,0.20,0.25",this.color);
 			}
 		}
 
@@ -22339,7 +22947,7 @@ var Laya=window.Laya=(function(window,document){
 				var prePrice=NaN;
 				var tPrice=NaN;
 				var tIndex=0;
-				var lastIndex=tI;
+				lastIndex=tI;
 				tIndex=this.disDataList.length-1;
 				prePrice=StockTools.getStockPriceEx(lastIndex,"close",this);
 				tPrice=StockTools.getStockPriceEx(tIndex,"close",this);
@@ -24841,6 +25449,7 @@ var Laya=window.Laya=(function(window,document){
 			this.lineHeight=400;
 			this.lineWidth=800;
 			this.markO=null;
+			this._autoTexts=null;
 			this.yRate=NaN;
 			this.xRate=NaN;
 			KLine.__super.call(this);
@@ -24881,6 +25490,7 @@ var Laya=window.Laya=(function(window,document){
 		__proto.initByStrData=function(data){
 			var stockData;
 			stockData=new StockData();
+			stockData.stockName=StockTools.getPureStock(this.tStock);
 			stockData.init(data);
 			this.setStockData(stockData);
 		}
@@ -24900,7 +25510,7 @@ var Laya=window.Laya=(function(window,document){
 			if (dataO.date==lastDataO.date){
 				this.dataList[this.dataList.length-1]=dataO;
 			}
-			else {
+			else{
 				if (dataO.date > lastDataO.date){
 					this.dataList.push(dataO);
 				}
@@ -24923,7 +25533,7 @@ var Laya=window.Laya=(function(window,document){
 				this.showMsg("playing K-line Animation");
 				Laya.timer.loop(10,this,this.timeEffect);
 			}
-			else {
+			else{
 				this.showMsg("K-line Showed:"+this.disDataList[this.disDataList.length-1].date);
 				this.cacheAsBitmap=true;
 				this.event("KlineShowed");
@@ -24956,6 +25566,7 @@ var Laya=window.Laya=(function(window,document){
 		__proto.drawdata=function(start,end){
 			(start===void 0)&& (start=0);
 			(end===void 0)&& (end=-1);
+			this._autoTexts=[];
 			if (this.maxShowCount > 0){
 				end=start+this.maxShowCount;
 				if (end > this.dataList.length)
@@ -24970,6 +25581,7 @@ var Laya=window.Laya=(function(window,document){
 			this.drawStockKLine();
 			this.drawGrid();
 			this.drawAnalysers();
+			this.drawAutoTexts();
 		}
 
 		__proto.drawStockKLine=function(){
@@ -24994,7 +25606,7 @@ var Laya=window.Laya=(function(window,document){
 				if (tData["close"] >=tData["open"]){
 					tColor="#ff0000";
 				}
-				else {
+				else{
 					tColor="#00ffff";
 				}
 				if (tData["high"]==tData["low"]){
@@ -25003,12 +25615,12 @@ var Laya=window.Laya=(function(window,document){
 					}
 					this.graphics.drawLine(tPos,this.getAdptYV(tData["open"]),tPos,this.getAdptYV(tData["close"])+1,tColor,this.gridWidth *this.xRate);
 				}
-				else {
+				else{
 					this.graphics.drawLine(tPos,this.getAdptYV(tData["high"]),tPos,this.getAdptYV(tData["low"]),tColor,1 *this.xRate);
 					if (tData["open"]==tData["close"]){
 						this.graphics.drawLine(tPos,this.getAdptYV(tData["open"]),tPos,this.getAdptYV(tData["close"])+0.5,tColor,this.gridWidth *this.xRate);
 					}
-					else {
+					else{
 						this.graphics.drawLine(tPos,this.getAdptYV(tData["open"]),tPos,this.getAdptYV(tData["close"]),tColor,this.gridWidth *this.xRate);
 					}
 				}
@@ -25031,19 +25643,20 @@ var Laya=window.Laya=(function(window,document){
 			if (this.markO && this.markO.date){
 				var buyI=0;
 				buyI=this.drawMark(this.markO.date,"Buy",dataList);
-				if (buyI >=0&&this.markO.sell){
+				if (buyI >=0 && this.markO.sell){
 					var sellI=0;
 					i=buyI+this.markO.sell;
 					if (dataList[i]){
 						prePrice=dataList[buyI]["high"]
 						tData=dataList[i];
-						curPrice=this.markO.sellPrice||tData["close"]
+						curPrice=this.markO.sellPrice || tData["close"]
 						tPos=this.getAdptXV(i *this.gridWidth);
 						this.graphics.drawLine(tPos,this.getAdptYV(tData["low"]),tPos,this.getAdptYV(tData["low"])+30,"#00ff00");
 						var curInfo;
 						if (this.markO.sellReason){
 							curInfo="Sell:"+StockTools.getGoodPercent((curPrice-prePrice)/ prePrice)+"%"+this.markO.sellReason;
-							}else{
+						}
+						else{
 							curInfo="Sell:"+StockTools.getGoodPercent((curPrice-prePrice)/ prePrice)+"%"+tData["date"];
 						}
 						this.graphics.fillText(curInfo,tPos,this.getAdptYV(tData["low"])+30,null,"#00ff00","center");
@@ -25148,16 +25761,28 @@ var Laya=window.Laya=(function(window,document){
 			}
 		}
 
-		__proto.drawTexts=function(texts,sign,dy,color,withLine,lineColor){
+		__proto.drawTexts=function(texts,sign,dy,color,withLine,lineColor,autoPos){
 			(dy===void 0)&& (dy=0);
 			(color===void 0)&& (color="#ff0000");
 			(withLine===void 0)&& (withLine=false);
+			(autoPos===void 0)&& (autoPos=false);
 			var i=0,len=0;
 			len=texts.length;
 			var tArr;
-			for (i=0;i < len;i++){
-				tArr=texts[i];
-				this.drawText(tArr[0],tArr[1],sign,dy,color,withLine,lineColor);
+			var tDy=NaN;
+			if (autoPos){
+				for (i=0;i < len;i++){
+					tArr=texts[i];
+					tDy=tArr[2] || 0;
+					this.drawTextAuto(tArr[0],tArr[1],sign,dy+tDy,color,withLine,lineColor);
+				}
+			}
+			else{
+				for (i=0;i < len;i++){
+					tArr=texts[i];
+					tDy=tArr[2] || 0;
+					this.drawText(tArr[0],tArr[1],sign,dy+tDy,color,withLine,lineColor);
+				}
 			}
 		}
 
@@ -25170,6 +25795,56 @@ var Laya=window.Laya=(function(window,document){
 				if (!lineColor)
 					lineColor=color;
 				this.graphics.drawLine(this.getAdptXV(i *this.gridWidth),this.getAdptYV(this.disDataList[i][sign])+dY,this.getAdptXV(i *this.gridWidth),this.getAdptYV(this.disDataList[i][sign]),lineColor);
+			}
+		}
+
+		__proto.drawAutoTexts=function(){}
+		__proto.isOKPos=function(rect){
+			var i=0,len=0;
+			var tRec;
+			len=this._autoTexts.length;
+			for (i=0;i < len;i++){
+				tRec=this._autoTexts[i];
+				if (tRec.intersects(rect))return false;
+			}
+			return true;
+		}
+
+		__proto.findOKPosForRect=function(rect,startDY){
+			(startDY===void 0)&& (startDY=50);
+			var tY=NaN;
+			tY=rect.y;
+			var tDY=NaN;
+			tDY=startDY;
+			while (!this.isOKPos(rect)){
+				rect.y=tY+tDY;
+				if (this.isOKPos(rect))break ;
+				rect.y=tY-tDY;
+				if (this.isOKPos(rect))break ;
+				tDY+=2;
+			}
+		}
+
+		__proto.drawTextAuto=function(text,i,sign,dY,color,withLine,lineColor){
+			(dY===void 0)&& (dY=0);
+			(color===void 0)&& (color="#ff0000");
+			(withLine===void 0)&& (withLine=false);
+			var tTextRect;
+			tTextRect=new Rectangle();
+			var x=NaN;
+			x=this.getAdptXV(i *this.gridWidth);
+			var y=NaN;
+			y=this.getAdptYV(this.disDataList[i][sign]);
+			var width=Utils.measureText(text,Font.defaultFont).width;
+			tTextRect.setTo(x,y,width,16);
+			tTextRect.x-=tTextRect.width *0.5;
+			this.findOKPosForRect(tTextRect,dY);
+			this._autoTexts.push(tTextRect);
+			this.graphics.fillText(text,tTextRect.x+tTextRect.width *0.5,tTextRect.y,null,color,"center");
+			if (withLine){
+				if (!lineColor)
+					lineColor=color;
+				this.graphics.drawLine(tTextRect.x+tTextRect.width *0.5,tTextRect.y,tTextRect.x+tTextRect.width *0.5,this.getAdptYV(this.disDataList[i][sign]),lineColor);
 			}
 		}
 
@@ -25216,7 +25891,7 @@ var Laya=window.Laya=(function(window,document){
 				if (exTxt){
 					this.drawPoint(tI,tData[tSign],exTxt,KLine.SignDrawDes[tSign]["dy"],KLine.SignDrawDes[tSign]["color"],3);
 				}
-				else {
+				else{
 					this.drawPoint(tI,tData[tSign],tData[tSign],KLine.SignDrawDes[tSign]["dy"],KLine.SignDrawDes[tSign]["color"],3);
 				}
 			}
@@ -37686,107 +38361,6 @@ var Laya=window.Laya=(function(window,document){
 
 
 	/**
-	*使用 <code>VSlider</code> 控件，用户可以通过在滑块轨道的终点之间移动滑块来选择值。
-	*<p> <code>VSlider</code> 控件采用垂直方向。滑块轨道从下往上扩展，而标签位于轨道的左右两侧。</p>
-	*
-	*@example 以下示例代码，创建了一个 <code>VSlider</code> 实例。
-	*<listing version="3.0">
-	*package
-	*{
-		*import laya.ui.HSlider;
-		*import laya.ui.VSlider;
-		*import laya.utils.Handler;
-		*public class VSlider_Example
-		*{
-			*private var vSlider:VSlider;
-			*public function VSlider_Example()
-			*{
-				*Laya.init(640,800);//设置游戏画布宽高。
-				*Laya.stage.bgColor="#efefef";//设置画布的背景颜色。
-				*Laya.loader.load(["resource/ui/vslider.png","resource/ui/vslider$bar.png"],Handler.create(this,onLoadComplete));//加载资源。
-				*}
-			*private function onLoadComplete():void
-			*{
-				*vSlider=new VSlider();//创建一个 VSlider 类的实例对象 vSlider 。
-				*vSlider.skin="resource/ui/vslider.png";//设置 vSlider 的皮肤。
-				*vSlider.min=0;//设置 vSlider 最低位置值。
-				*vSlider.max=10;//设置 vSlider 最高位置值。
-				*vSlider.value=2;//设置 vSlider 当前位置值。
-				*vSlider.tick=1;//设置 vSlider 刻度值。
-				*vSlider.x=100;//设置 vSlider 对象的属性 x 的值，用于控制 vSlider 对象的显示位置。
-				*vSlider.y=100;//设置 vSlider 对象的属性 y 的值，用于控制 vSlider 对象的显示位置。
-				*vSlider.changeHandler=new Handler(this,onChange);//设置 vSlider 位置变化处理器。
-				*Laya.stage.addChild(vSlider);//把 vSlider 添加到显示列表。
-				*}
-			*private function onChange(value:Number):void
-			*{
-				*trace("滑块的位置： value="+value);
-				*}
-			*}
-		*}
-	*</listing>
-	*<listing version="3.0">
-	*Laya.init(640,800);//设置游戏画布宽高
-	*Laya.stage.bgColor="#efefef";//设置画布的背景颜色
-	*var vSlider;
-	*Laya.loader.load(["resource/ui/vslider.png","resource/ui/vslider$bar.png"],laya.utils.Handler.create(this,onLoadComplete));//加载资源。
-	*function onLoadComplete(){
-		*vSlider=new laya.ui.VSlider();//创建一个 VSlider 类的实例对象 vSlider 。
-		*vSlider.skin="resource/ui/vslider.png";//设置 vSlider 的皮肤。
-		*vSlider.min=0;//设置 vSlider 最低位置值。
-		*vSlider.max=10;//设置 vSlider 最高位置值。
-		*vSlider.value=2;//设置 vSlider 当前位置值。
-		*vSlider.tick=1;//设置 vSlider 刻度值。
-		*vSlider.x=100;//设置 vSlider 对象的属性 x 的值，用于控制 vSlider 对象的显示位置。
-		*vSlider.y=100;//设置 vSlider 对象的属性 y 的值，用于控制 vSlider 对象的显示位置。
-		*vSlider.changeHandler=new laya.utils.Handler(this,onChange);//设置 vSlider 位置变化处理器。
-		*Laya.stage.addChild(vSlider);//把 vSlider 添加到显示列表。
-		*}
-	*function onChange(value){
-		*console.log("滑块的位置： value="+value);
-		*}
-	*</listing>
-	*<listing version="3.0">
-	*import HSlider=laya.ui.HSlider;
-	*import VSlider=laya.ui.VSlider;
-	*import Handler=laya.utils.Handler;
-	*class VSlider_Example {
-		*private vSlider:VSlider;
-		*constructor(){
-			*Laya.init(640,800);//设置游戏画布宽高。
-			*Laya.stage.bgColor="#efefef";//设置画布的背景颜色。
-			*Laya.loader.load(["resource/ui/vslider.png","resource/ui/vslider$bar.png"],Handler.create(this,this.onLoadComplete));//加载资源。
-			*}
-		*private onLoadComplete():void {
-			*this.vSlider=new VSlider();//创建一个 VSlider 类的实例对象 vSlider 。
-			*this.vSlider.skin="resource/ui/vslider.png";//设置 vSlider 的皮肤。
-			*this.vSlider.min=0;//设置 vSlider 最低位置值。
-			*this.vSlider.max=10;//设置 vSlider 最高位置值。
-			*this.vSlider.value=2;//设置 vSlider 当前位置值。
-			*this.vSlider.tick=1;//设置 vSlider 刻度值。
-			*this.vSlider.x=100;//设置 vSlider 对象的属性 x 的值，用于控制 vSlider 对象的显示位置。
-			*this.vSlider.y=100;//设置 vSlider 对象的属性 y 的值，用于控制 vSlider 对象的显示位置。
-			*this.vSlider.changeHandler=new Handler(this,this.onChange);//设置 vSlider 位置变化处理器。
-			*Laya.stage.addChild(this.vSlider);//把 vSlider 添加到显示列表。
-			*}
-		*private onChange(value:number):void {
-			*console.log("滑块的位置： value="+value);
-			*}
-		*}
-	*</listing>
-	*@see laya.ui.Slider
-	*/
-	//class laya.ui.VSlider extends laya.ui.Slider
-	var VSlider=(function(_super){
-		function VSlider(){VSlider.__super.call(this);;
-		};
-
-		__class(VSlider,'laya.ui.VSlider',_super);
-		return VSlider;
-	})(Slider)
-
-
-	/**
 	*<code>TextInput</code> 类用于创建显示对象以显示和输入文本。
 	*
 	*@example 以下示例代码，创建了一个 <code>TextInput</code> 实例。
@@ -38102,6 +38676,107 @@ var Laya=window.Laya=(function(window,document){
 
 
 	/**
+	*使用 <code>VSlider</code> 控件，用户可以通过在滑块轨道的终点之间移动滑块来选择值。
+	*<p> <code>VSlider</code> 控件采用垂直方向。滑块轨道从下往上扩展，而标签位于轨道的左右两侧。</p>
+	*
+	*@example 以下示例代码，创建了一个 <code>VSlider</code> 实例。
+	*<listing version="3.0">
+	*package
+	*{
+		*import laya.ui.HSlider;
+		*import laya.ui.VSlider;
+		*import laya.utils.Handler;
+		*public class VSlider_Example
+		*{
+			*private var vSlider:VSlider;
+			*public function VSlider_Example()
+			*{
+				*Laya.init(640,800);//设置游戏画布宽高。
+				*Laya.stage.bgColor="#efefef";//设置画布的背景颜色。
+				*Laya.loader.load(["resource/ui/vslider.png","resource/ui/vslider$bar.png"],Handler.create(this,onLoadComplete));//加载资源。
+				*}
+			*private function onLoadComplete():void
+			*{
+				*vSlider=new VSlider();//创建一个 VSlider 类的实例对象 vSlider 。
+				*vSlider.skin="resource/ui/vslider.png";//设置 vSlider 的皮肤。
+				*vSlider.min=0;//设置 vSlider 最低位置值。
+				*vSlider.max=10;//设置 vSlider 最高位置值。
+				*vSlider.value=2;//设置 vSlider 当前位置值。
+				*vSlider.tick=1;//设置 vSlider 刻度值。
+				*vSlider.x=100;//设置 vSlider 对象的属性 x 的值，用于控制 vSlider 对象的显示位置。
+				*vSlider.y=100;//设置 vSlider 对象的属性 y 的值，用于控制 vSlider 对象的显示位置。
+				*vSlider.changeHandler=new Handler(this,onChange);//设置 vSlider 位置变化处理器。
+				*Laya.stage.addChild(vSlider);//把 vSlider 添加到显示列表。
+				*}
+			*private function onChange(value:Number):void
+			*{
+				*trace("滑块的位置： value="+value);
+				*}
+			*}
+		*}
+	*</listing>
+	*<listing version="3.0">
+	*Laya.init(640,800);//设置游戏画布宽高
+	*Laya.stage.bgColor="#efefef";//设置画布的背景颜色
+	*var vSlider;
+	*Laya.loader.load(["resource/ui/vslider.png","resource/ui/vslider$bar.png"],laya.utils.Handler.create(this,onLoadComplete));//加载资源。
+	*function onLoadComplete(){
+		*vSlider=new laya.ui.VSlider();//创建一个 VSlider 类的实例对象 vSlider 。
+		*vSlider.skin="resource/ui/vslider.png";//设置 vSlider 的皮肤。
+		*vSlider.min=0;//设置 vSlider 最低位置值。
+		*vSlider.max=10;//设置 vSlider 最高位置值。
+		*vSlider.value=2;//设置 vSlider 当前位置值。
+		*vSlider.tick=1;//设置 vSlider 刻度值。
+		*vSlider.x=100;//设置 vSlider 对象的属性 x 的值，用于控制 vSlider 对象的显示位置。
+		*vSlider.y=100;//设置 vSlider 对象的属性 y 的值，用于控制 vSlider 对象的显示位置。
+		*vSlider.changeHandler=new laya.utils.Handler(this,onChange);//设置 vSlider 位置变化处理器。
+		*Laya.stage.addChild(vSlider);//把 vSlider 添加到显示列表。
+		*}
+	*function onChange(value){
+		*console.log("滑块的位置： value="+value);
+		*}
+	*</listing>
+	*<listing version="3.0">
+	*import HSlider=laya.ui.HSlider;
+	*import VSlider=laya.ui.VSlider;
+	*import Handler=laya.utils.Handler;
+	*class VSlider_Example {
+		*private vSlider:VSlider;
+		*constructor(){
+			*Laya.init(640,800);//设置游戏画布宽高。
+			*Laya.stage.bgColor="#efefef";//设置画布的背景颜色。
+			*Laya.loader.load(["resource/ui/vslider.png","resource/ui/vslider$bar.png"],Handler.create(this,this.onLoadComplete));//加载资源。
+			*}
+		*private onLoadComplete():void {
+			*this.vSlider=new VSlider();//创建一个 VSlider 类的实例对象 vSlider 。
+			*this.vSlider.skin="resource/ui/vslider.png";//设置 vSlider 的皮肤。
+			*this.vSlider.min=0;//设置 vSlider 最低位置值。
+			*this.vSlider.max=10;//设置 vSlider 最高位置值。
+			*this.vSlider.value=2;//设置 vSlider 当前位置值。
+			*this.vSlider.tick=1;//设置 vSlider 刻度值。
+			*this.vSlider.x=100;//设置 vSlider 对象的属性 x 的值，用于控制 vSlider 对象的显示位置。
+			*this.vSlider.y=100;//设置 vSlider 对象的属性 y 的值，用于控制 vSlider 对象的显示位置。
+			*this.vSlider.changeHandler=new Handler(this,this.onChange);//设置 vSlider 位置变化处理器。
+			*Laya.stage.addChild(this.vSlider);//把 vSlider 添加到显示列表。
+			*}
+		*private onChange(value:number):void {
+			*console.log("滑块的位置： value="+value);
+			*}
+		*}
+	*</listing>
+	*@see laya.ui.Slider
+	*/
+	//class laya.ui.VSlider extends laya.ui.Slider
+	var VSlider=(function(_super){
+		function VSlider(){VSlider.__super.call(this);;
+		};
+
+		__class(VSlider,'laya.ui.VSlider',_super);
+		return VSlider;
+	})(Slider)
+
+
+	/**
 	*@private
 	*/
 	//class laya.display.GraphicAnimation extends laya.display.FrameAnimation
@@ -38368,6 +39043,7 @@ var Laya=window.Laya=(function(window,document){
 			this.list=null;
 			this.tip=null;
 			this.selectFileBtn=null;
+			this.typeSelect=null;
 			BackTestViewUI.__super.call(this);
 		}
 
@@ -38378,7 +39054,7 @@ var Laya=window.Laya=(function(window,document){
 			this.createView(BackTestViewUI.uiView);
 		}
 
-		BackTestViewUI.uiView={"type":"View","props":{"width":445,"height":400},"child":[{"type":"List","props":{"var":"list","vScrollBarSkin":"comp/vscroll.png","top":30,"right":10,"left":10,"bottom":10},"child":[{"type":"Box","props":{"y":0,"x":0,"width":168,"name":"render","height":61},"child":[{"type":"Label","props":{"wordWrap":true,"top":0,"text":"this is a list","skin":"comp/label.png","right":0,"name":"label","left":0,"fontSize":14,"color":"#efe82f","bottom":0,"borderColor":"#fb125d"}},{"type":"Label","props":{"y":39,"x":72,"wordWrap":true,"width":96,"text":"this is a list","skin":"comp/label.png","name":"info","height":22,"fontSize":14,"color":"#efe82f","align":"right"}}]}]},{"type":"Label","props":{"y":-11,"width":271,"var":"tip","text":"股票代码:当前盈利:最高盈利","right":150,"height":38,"color":"#f33713"}},{"type":"Button","props":{"y":4,"x":8,"width":94,"var":"selectFileBtn","skin":"comp/button.png","label":"选择回测文件","height":24,"labelColors":"#efefef,#ffffff,#c5c5c5,#c5c5c5"}}]};
+		BackTestViewUI.uiView={"type":"View","props":{"width":445,"height":400},"child":[{"type":"List","props":{"var":"list","vScrollBarSkin":"comp/vscroll.png","top":30,"right":10,"left":10,"bottom":10},"child":[{"type":"Box","props":{"y":0,"x":0,"width":168,"name":"render","height":61},"child":[{"type":"Label","props":{"wordWrap":true,"top":0,"text":"this is a list","skin":"comp/label.png","right":0,"name":"label","left":0,"fontSize":14,"color":"#efe82f","bottom":0,"borderColor":"#fb125d"}},{"type":"Label","props":{"y":39,"x":72,"wordWrap":true,"width":96,"text":"this is a list","skin":"comp/label.png","name":"info","height":22,"fontSize":14,"color":"#efe82f","align":"right"}}]}]},{"type":"Label","props":{"y":-11,"width":271,"var":"tip","text":"股票代码:当前盈利:最高盈利","right":150,"height":38,"color":"#f33713"}},{"type":"Button","props":{"y":4,"x":8,"width":94,"var":"selectFileBtn","skin":"comp/button.png","label":"选择回测文件","height":24,"labelColors":"#efefef,#ffffff,#c5c5c5,#c5c5c5"}},{"type":"ComboBox","props":{"y":3,"x":10,"visibleNum":15,"var":"typeSelect","skin":"comp/combobox.png","selectedIndex":0,"scrollBarSkin":"comp/vscroll.png","right":20,"labels":"date","labelColors":"#efefef,#ffffff,#c5c5c5,#c5c5c5"}}]};
 		return BackTestViewUI;
 	})(View)
 
@@ -39791,6 +40467,9 @@ var Laya=window.Laya=(function(window,document){
 			this.fileSelect=null;
 			this.tI=0;
 			this.preTime=0;
+			this.tDatas=null;
+			this.typeDic={};
+			this.tType="date";
 			BackTestView.__super.call(this);
 			this.fileSelect=new FileSelect(this.selectFileBtn,"*",new Handler(this,this.onChange));
 			this.list.renderHandler=new Handler(this,this.stockRender);
@@ -39798,6 +40477,7 @@ var Laya=window.Laya=(function(window,document){
 			this.list.mouseHandler=new Handler(this,this.onMouseList);
 			this.list.scrollBar.touchScrollEnable=true;
 			this.tip.text="回测文件显示";
+			this.typeSelect.on("change",this,this.onTypeChange);
 		}
 
 		__class(BackTestView,'view.BackTestView',_super);
@@ -39856,8 +40536,14 @@ var Laya=window.Laya=(function(window,document){
 				this.list.array=dataO.list;
 				var tList;
 				tList=dataO.list;
+				this.tDatas=tList;
 				if (dataO.tpl){
 					BackTestView.tpl=dataO.tpl;
+				}
+				if (dataO.rankInfos){
+					this.initRankSelect(dataO.rankInfos);
+					}else{
+					this.initRankSelect([]);
 				};
 				var tInfoO;
 				tInfoO={};
@@ -39865,9 +40551,53 @@ var Laya=window.Laya=(function(window,document){
 				tInfoO.avgRate=ArrayMethods.sumKey(tList,"sellRate")/ tInfoO.count;
 				tInfoO.avgRatePercent=StockTools.getGoodPercent(ArrayMethods.sumKey(tList,"sellRate")/ tInfoO.count)+"%";
 				tInfoO.avgDay=1+Math.floor(ArrayMethods.sumKey(tList,"sell")/ tInfoO.count);
+				tInfoO.winTime=ArrayMethods.count(tList,"sellRate",BackTestView.bigThenZero);
+				tInfoO.winRate=StockTools.getGoodPercent(tInfoO.winTime / tInfoO.count)+"%";
 				tInfoO.yearRate=StockTools.getGoodPercent((tInfoO.avgRate / tInfoO.avgDay)*240)+"%";
-				this.tip.text=ValueTools.getTplStr("购买次数:{#count#}\n平均盈利:{#avgRatePercent#},{#avgDay#}Day\nYearRate:{#yearRate#}",tInfoO);
+				this.tip.text=ValueTools.getTplStr("购买次数:{#count#},胜率:{#winRate#}\n平均盈利:{#avgRatePercent#},{#avgDay#}Day\nYearRate:{#yearRate#}",tInfoO);
 			}
+		}
+
+		__proto.onTypeChange=function(){
+			this.tType=this.typeSelect.selectedLabel;
+			this.refreshData();
+		}
+
+		__proto.refreshData=function(){
+			if (!this.tDatas)
+				return;
+			if (this.typeDic[this.tType]){;
+				this.tDatas.sort(ValueTools.sortByKeyEX.apply(null,this.typeDic[this.tType]["sortParams"]));
+			}
+			else {
+				this.tDatas.sort(MathUtil.sortByKey("date",true,false));
+			}
+			this.list.array=this.tDatas;
+		}
+
+		__proto.initRankSelect=function(rankInfos){
+			var types;
+			types=rankInfos;
+			this.typeDic={};
+			var typesStr;
+			typesStr=[];
+			var tTypeO;
+			var i=0,len=0;
+			len=types.length;
+			for (i=0;i < len;i++){
+				tTypeO=types[i];
+				typesStr.push(tTypeO.label);
+				this.typeDic[tTypeO.label]=tTypeO;
+			}
+			if (typesStr.length < 1)typesStr=["date"];
+			this.typeSelect.labels=typesStr.join(",");
+			this.typeSelect.selectedIndex=0;
+			this.tType=this.typeSelect.selectedLabel;
+			this.refreshData();
+		}
+
+		BackTestView.bigThenZero=function(v){
+			return v > 0;
 		}
 
 		BackTestView.tpl="{#code#}\n{#date#}\n{#sell#}:{#winRate#}";
@@ -39913,6 +40643,7 @@ var Laya=window.Laya=(function(window,document){
 			analyserClassList.push(StrongLine);
 			analyserClassList.push(AverageLineAnalyser);
 			analyserClassList.push(DistAnalyser);
+			analyserClassList.push(NoticeAnalyser);
 			this.analyserList.initAnalysers(analyserClassList);
 			this.addChild(this.kLine);
 			this.kLine.pos(0,this.kLine.lineHeight+90);
@@ -39937,6 +40668,7 @@ var Laya=window.Laya=(function(window,document){
 			Notice.listen("Show_Analyser_Prop",this,this.showAnalyserProp);
 			Notice.listen("Hide_Analyser_Prop",this,this.updatePropPanelPos);
 			Notice.listen("Set_Analyser_Prop",this,this.onSetAnalyserProps);
+			Notice.listen("Fresh_KLineView",this,this.refreshKLine);
 			this.propPanel.on("MakeChange",this,this.refreshKLine);
 			this.on("mousedown",this,this.onMMouseDown);
 			this.on("mouseup",this,this.onMMouseUp);
@@ -39972,9 +40704,9 @@ var Laya=window.Laya=(function(window,document){
 				if (preStockData){
 					showStr=tStockData.date+
 					"\n"+"Open:"+tStockData.open+":"+StockTools.getGoodPercent((tStockData.open-preStockData.close)/ preStockData.close)+"%"+
-					"\n"+"Close:"+tStockData.close+":"+StockTools.getGoodPercent((tStockData.close-preStockData.close)/ preStockData.close)+"%"+
+					""+"Close:"+tStockData.close+":"+StockTools.getGoodPercent((tStockData.close-preStockData.close)/ preStockData.close)+"%"+
 					"\n"+"High:"+tStockData.high+":"+StockTools.getGoodPercent((tStockData.high-preStockData.close)/ preStockData.close)+"%"+
-					"\n"+"Low:"+tStockData.low+":"+StockTools.getGoodPercent((tStockData.low-preStockData.close)/ preStockData.close)+"%";
+					""+"Low:"+tStockData.low+":"+StockTools.getGoodPercent((tStockData.low-preStockData.close)/ preStockData.close)+"%";
 					if (tStockData.close-tStockData.open >=0){
 						this.dayStockInfoTxt.color="#ff0000";
 					}
@@ -39989,6 +40721,11 @@ var Laya=window.Laya=(function(window,document){
 					"\n"+"Low:"+tStockData.low;
 					this.dayStockInfoTxt.color="#ff0000";
 				}
+				showStr+="\nFall:"+StockTools.getGoodPercent(StockTools.getStockFallDownPartRate(this.kLine.disDataList,curI));
+				showStr+=" Body:"+StockTools.getGoodPercent(StockTools.getBodyRate(this.kLine.disDataList,curI));
+				showStr+="\nAngle:"+StockTools.getDayLineAngleDay(this.kLine.disDataList,curI,5,0).toFixed(2)+" down:"+StockTools.getContinueDayLineAngleDownCount(this.kLine.disDataList,curI,5,0,"close");
+				showStr+=" Rise:"+StockTools.getGoodPercent(StockTools.getNoDownUpRateBeforeDay(this.kLine.disDataList,curI));
+				showStr+="\n"+"Tops:"+ArrayMethods.getItemValues(StockTools.findTopPoints(this.kLine.disDataList,curI-100,curI,6,6),"price").join(",");
 				if (this.dayLine.x+this.dayStockInfoTxt.width > this.width-20){
 					this.dayStockInfoTxt.align="right";
 					this.dayStockInfoTxt.x=-this.dayStockInfoTxt.width;
@@ -40268,7 +41005,7 @@ var Laya=window.Laya=(function(window,document){
 			this.dayLine.graphics.clear();
 			this.dayLine.graphics.drawLine(0,0,0,-this.kLine.y,"#ff0000");
 			this.dayLine.visible=false;
-			this.dayStockInfoTxt.y=-100;
+			this.dayStockInfoTxt.y=-150;
 		}
 
 		__proto.onDetail=function(){
@@ -41301,7 +42038,7 @@ var Laya=window.Laya=(function(window,document){
 			var item=cell.dataSource;
 			var img;
 			img=cell.getChildByName("img");
-			img.skin="https://onewaymyway.github.io/stockdata/smallpics/"+item.code+".png";
+			img.skin=StockTools.getStockPicPath(item.code);
 		}
 
 		__proto.openUrl=function(path){
@@ -41418,6 +42155,25 @@ var Laya=window.Laya=(function(window,document){
 	*...
 	*@author ww
 	*/
+	//class laya.debug.view.nodeInfo.nodetree.FindNodeSmall extends laya.debug.ui.debugui.FindNodeSmallUI
+	var FindNodeSmall=(function(_super){
+		function FindNodeSmall(){
+			FindNodeSmall.__super.call(this);
+			Base64AtlasManager.replaceRes(FindNodeSmallUI.uiView);
+			this.createView(FindNodeSmallUI.uiView);
+		}
+
+		__class(FindNodeSmall,'laya.debug.view.nodeInfo.nodetree.FindNodeSmall',_super);
+		var __proto=FindNodeSmall.prototype;
+		__proto.createChildren=function(){}
+		return FindNodeSmall;
+	})(FindNodeSmallUI)
+
+
+	/**
+	*...
+	*@author ww
+	*/
 	//class laya.debug.view.nodeInfo.nodetree.FindNode extends laya.debug.ui.debugui.FindNodeUI
 	var FindNode=(function(_super){
 		function FindNode(){
@@ -41434,25 +42190,6 @@ var Laya=window.Laya=(function(window,document){
 
 		return FindNode;
 	})(FindNodeUI)
-
-
-	/**
-	*...
-	*@author ww
-	*/
-	//class laya.debug.view.nodeInfo.nodetree.FindNodeSmall extends laya.debug.ui.debugui.FindNodeSmallUI
-	var FindNodeSmall=(function(_super){
-		function FindNodeSmall(){
-			FindNodeSmall.__super.call(this);
-			Base64AtlasManager.replaceRes(FindNodeSmallUI.uiView);
-			this.createView(FindNodeSmallUI.uiView);
-		}
-
-		__class(FindNodeSmall,'laya.debug.view.nodeInfo.nodetree.FindNodeSmall',_super);
-		var __proto=FindNodeSmall.prototype;
-		__proto.createChildren=function(){}
-		return FindNodeSmall;
-	})(FindNodeSmallUI)
 
 
 	/**
@@ -41980,8 +42717,3 @@ var Laya=window.Laya=(function(window,document){
 	new StockMain();
 
 })(window,document,Laya);
-
-
-/*
-1 file:///D:/stocksite.git/trunk/StockView/src/laya/stock/analysers/AnalyserBase.as (160):warning:color This variable is not defined.
-*/
