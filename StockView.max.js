@@ -3446,6 +3446,11 @@ var Laya=window.Laya=(function(window,document){
 			this.onStageResize();
 		}
 
+		__proto.isOKSize=function(limit){
+			(limit===void 0)&& (limit=900);
+			return Browser.clientWidth *Browser.pixelRatio > limit || Browser.clientHeight *Browser.pixelRatio > limit;
+		}
+
 		__proto.testMainView=function(){
 			this.stockMainBox=new Box();
 			Laya.stage.on("resize",this,this.onStageResize);
@@ -3453,7 +3458,7 @@ var Laya=window.Laya=(function(window,document){
 			mainView=new MainView();
 			mainView.left=mainView.right=mainView.top=mainView.bottom=10;
 			this.stockMainBox.addChild(mainView);
-			if (Browser.pixelRatio > 1){
+			if (Browser.pixelRatio > 1&&this.isOKSize()){
 				StockMain.scaleRate=Browser.pixelRatio;
 				var box;
 				box=new Box();
