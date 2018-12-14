@@ -3448,7 +3448,7 @@ var Laya=window.Laya=(function(window,document){
 
 		__proto.isOKSize=function(limit){
 			(limit===void 0)&& (limit=900);
-			return Browser.clientWidth *Browser.pixelRatio > limit || Browser.clientHeight *Browser.pixelRatio > limit;
+			return Browser.clientWidth / Browser.pixelRatio > limit || Browser.clientHeight / Browser.pixelRatio > limit;
 		}
 
 		__proto.testMainView=function(){
